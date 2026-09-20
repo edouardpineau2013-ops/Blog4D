@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Connexion — Blog des 4D</title>
+
+    <link rel="stylesheet" href="style.css">
+
+    <style>
+        .auth-container {
+            max-width: 500px;
+            margin: 60px auto;
+        }
+
+        .auth-card {
+            background: rgba(255, 255, 255, 0.85);
+            padding: 35px;
+            border-radius: 18px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.12);
+        }
+
+        .auth-card h2 {
+            text-align: center;
+            margin-bottom: 25px;
+        }
+
+        .auth-field {
+            margin-bottom: 20px;
+        }
+
+        .auth-field label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 7px;
+        }
+
+        .auth-field input {
+            width: 100%;
+            padding: 13px;
+            border: 2px solid #d4d8bb;
+            border-radius: 9px;
+            font-size: 16px;
+            outline: none;
+        }
+
+        .auth-field input:focus {
+            border-color: #100b3a;
+        }
+
+        .auth-button {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 9px;
+            background: #100b3a;
+            color: white;
+            font-size: 17px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .auth-button:hover {
+            opacity: 0.9;
+        }
+
+        .auth-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .auth-message {
+            margin-top: 15px;
+            padding: 12px;
+            border-radius: 8px;
+            display: none;
+        }
+
+        .auth-message.error {
+            display: block;
+            background: #ffdede;
+            color: #8b0000;
+        }
+
+        .auth-message.success {
+            display: block;
+            background: #ddf5df;
+            color: #176b22;
+        }
+
+        .auth-link {
+            display: block;
+            text-align: center;
+            margin-top: 20px;
+            color: #100b3a;
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+
+<header>
+    <h1>Connexion</h1>
+</header>
+
+<nav>
+    <a href="index.html" class="nav-link">Accueil</a>
+    <a href="actualites.html" class="nav-link">Actualités</a>
+    <a href="evenements.html" class="nav-link">Événements</a>
+    <a href="cours.html" class="nav-link">Cours</a>
+    <a href="discussion.html" class="nav-link">Discussion</a>
+    <a href="contact.html" class="nav-link">Me contacter</a>
+    <a href="connexion.html"  class="nav-link" id="account-link">Se connecter</a>
+</nav>
+
+<main>
+    <div class="auth-container">
+
+        <section class="auth-card">
+
+            <h2>Se connecter</h2>
+
+            <form id="connexion-form">
+
+                <div class="auth-field">
+                    <label for="identifiant">Identifiant</label>
+
+                    <input
+                        type="text"
+                        id="identifiant"
+                        name="identifiant"
+                        autocomplete="username"
+                        required
+                    >
+                </div>
+
+                <div class="auth-field">
+                    <label for="mot-de-passe">Mot de passe</label>
+
+                    <input
+                        type="password"
+                        id="mot-de-passe"
+                        name="mot-de-passe"
+                        autocomplete="current-password"
+                        required
+                    >
+                </div>
+
+                <button
+                    type="submit"
+                    class="auth-button"
+                    id="connexion-button"
+                >
+                    Se connecter
+                </button>
+
+                <div
+                    id="connexion-message"
+                    class="auth-message"
+                ></div>
+
+            </form>
+
+            <a
+                href="inscription.html"
+                class="auth-link"
+            >
+                Créer un compte
+            </a>
+
+        </section>
+
+    </div>
+</main>
+
+<footer>
+    <p>© 2026 — Blog des 4èmes D</p>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="auth.js"></script>
+
+<script>
+    const formulaire = document.getElementById("connexion-form");
+    const message = document.getElementById("connexion-message");
+    const bouton = document.getElementById("connexion-button");
+
+    formulaire.addEventListener("submit", async (event) => {
+
+        event.preventDefault();
+
+        const identifiant =
+            document.getElementById("identifiant").value;
+
+        const motDePasse =
+            document.getElementById("mot-de-passe").value;
+
+        message.className = "auth-message";
+        message.textContent = "";
+
+        bouton.disabled = true;
+        bouton.textContent = "Connexion...";
+
+        try {
+
+            await connecter(identifiant, motDePasse);
+
+            message.className =
+                "auth-message success";
+
+            message.textContent =
+                "Connexion réussie !";
+
+            setTimeout(() => {
+                window.location.href = "compte.html";
+            }, 500);
+
+        } catch (error) {
+
+            message.className =
+                "auth-message error";
+
+            message.textContent =
+                error.message ||
+                "Identifiant ou mot de passe incorrect.";
+
+            bouton.disabled = false;
+            bouton.textContent = "Se connecter";
+        }
+    });
+</script>
+
+</body>
+</html>

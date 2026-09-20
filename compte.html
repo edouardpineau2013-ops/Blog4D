@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Mon compte — Blog des 4D</title>
+
+    <link rel="stylesheet" href="style.css">
+
+    <style>
+        .account-container {
+            max-width: 700px;
+            margin: 60px auto;
+        }
+
+        .account-card {
+            background: rgba(255, 255, 255, 0.85);
+            padding: 35px;
+            border-radius: 18px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.12);
+            text-align: center;
+        }
+
+        .account-icon {
+            font-size: 55px;
+            margin-bottom: 15px;
+        }
+
+        .account-card h2 {
+            margin-bottom: 10px;
+        }
+
+        .account-identifiant {
+            font-size: 24px;
+            font-weight: bold;
+            color: #100b3a;
+            margin: 20px 0 30px;
+        }
+
+        .logout-button {
+            border: none;
+            padding: 13px 25px;
+            border-radius: 9px;
+            background: #100b3a;
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .logout-button:hover {
+            opacity: 0.9;
+        }
+    </style>
+</head>
+
+<body>
+
+<header>
+    <h1>Mon compte</h1>
+</header>
+
+<nav>
+    <a href="index.html"  class="nav-link">Accueil</a>
+    <a href="actualites.html" class="nav-link">Actualités</a>
+    <a href="evenements.html" class="nav-link">Événements</a>
+    <a href="cours.html" class="nav-link">Cours</a>
+    <a href="discussion.html" class="nav-link">Discussion</a>
+    <a href="contact.html" class="nav-link">Me contacter</a>
+    <a href="connexion.html"  class="nav-link" id="account-link">Se connecter</a>
+</nav>
+
+<main>
+
+    <div class="account-container">
+
+        <section class="account-card">
+
+            <div class="account-icon">
+                👤
+            </div>
+
+            <h2>Bienvenue</h2>
+
+            <p>
+                Vous êtes connecté avec l'identifiant :
+            </p>
+
+            <div
+                class="account-identifiant"
+                id="identifiant-compte"
+            >
+                Chargement...
+            </div>
+
+            <button
+                class="logout-button"
+                id="deconnexion-button"
+            >
+                Se déconnecter
+            </button>
+
+        </section>
+
+    </div>
+
+</main>
+
+<footer>
+    <p>© 2026 — Blog des 4èmes D</p>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="auth.js"></script>
+
+<script>
+    async function chargerCompte() {
+
+        const profil = await obtenirProfil();
+
+        if (!profil) {
+            window.location.href =
+                "connexion.html";
+
+            return;
+        }
+
+        document.getElementById(
+            "identifiant-compte"
+        ).textContent = profil.identifiant;
+    }
+
+    document
+        .getElementById("deconnexion-button")
+        .addEventListener("click", deconnecter);
+
+    chargerCompte();
+</script>
+
+</body>
+</html>

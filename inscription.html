@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Inscription — Blog des 4D</title>
+
+    <link rel="stylesheet" href="style.css">
+
+    <style>
+        .auth-container {
+            max-width: 500px;
+            margin: 60px auto;
+        }
+
+        .auth-card {
+            background: rgba(255, 255, 255, 0.85);
+            padding: 35px;
+            border-radius: 18px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.12);
+        }
+
+        .auth-card h2 {
+            text-align: center;
+            margin-bottom: 25px;
+        }
+
+        .auth-field {
+            margin-bottom: 20px;
+        }
+
+        .auth-field label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 7px;
+        }
+
+        .auth-field input {
+            width: 100%;
+            padding: 13px;
+            border: 2px solid #d4d8bb;
+            border-radius: 9px;
+            font-size: 16px;
+            outline: none;
+        }
+
+        .auth-field input:focus {
+            border-color: #100b3a;
+        }
+
+        .auth-button {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 9px;
+            background: #100b3a;
+            color: white;
+            font-size: 17px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .auth-button:hover {
+            opacity: 0.9;
+        }
+
+        .auth-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .auth-message {
+            margin-top: 15px;
+            padding: 12px;
+            border-radius: 8px;
+            display: none;
+        }
+
+        .auth-message.error {
+            display: block;
+            background: #ffdede;
+            color: #8b0000;
+        }
+
+        .auth-message.success {
+            display: block;
+            background: #ddf5df;
+            color: #176b22;
+        }
+
+        .auth-link {
+            display: block;
+            text-align: center;
+            margin-top: 20px;
+            color: #100b3a;
+            font-weight: bold;
+        }
+
+        .auth-info {
+            font-size: 14px;
+            opacity: 0.7;
+            margin-top: 8px;
+        }
+    </style>
+</head>
+
+<body>
+
+<header>
+    <h1>Créer un compte</h1>
+</header>
+
+<nav>
+    <a href="index.html"  class="nav-link">Accueil</a>
+    <a href="actualites.html" class="nav-link">Actualités</a>
+    <a href="evenements.html" class="nav-link">Événements</a>
+    <a href="cours.html" class="nav-link">Cours</a>
+    <a href="discussion.html" class="nav-link">Discussion</a>
+    <a href="contact.html" class="nav-link">Me contacter</a>
+    <a href="connexion.html"  class="nav-link" id="account-link">Se connecter</a>
+</nav>
+
+<main>
+
+    <div class="auth-container">
+
+        <section class="auth-card">
+
+            <h2>Inscription</h2>
+
+            <form id="inscription-form">
+
+                <div class="auth-field">
+
+                    <label for="identifiant">
+                        Identifiant
+                    </label>
+
+                    <input
+                        type="text"
+                        id="identifiant"
+                        autocomplete="username"
+                        minlength="3"
+                        maxlength="30"
+                        required
+                    >
+
+                    <p class="auth-info">
+                        3 à 30 caractères.
+                    </p>
+
+                </div>
+
+                <div class="auth-field">
+
+                    <label for="mot-de-passe">
+                        Mot de passe
+                    </label>
+
+                    <input
+                        type="password"
+                        id="mot-de-passe"
+                        autocomplete="new-password"
+                        minlength="6"
+                        required
+                    >
+
+                    <p class="auth-info">
+                        Au moins 6 caractères.
+                    </p>
+
+                </div>
+
+                <div class="auth-field">
+
+                    <label for="confirmation">
+                        Confirmer le mot de passe
+                    </label>
+
+                    <input
+                        type="password"
+                        id="confirmation"
+                        autocomplete="new-password"
+                        minlength="6"
+                        required
+                    >
+
+                </div>
+
+                <button
+                    type="submit"
+                    class="auth-button"
+                    id="inscription-button"
+                >
+                    Créer mon compte
+                </button>
+
+                <div
+                    id="inscription-message"
+                    class="auth-message"
+                ></div>
+
+            </form>
+
+            <a
+                href="connexion.html"
+                class="auth-link"
+            >
+                J'ai déjà un compte
+            </a>
+
+        </section>
+
+    </div>
+
+</main>
+
+<footer>
+    <p>© 2026 — Blog des 4èmes D</p>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="auth.js"></script>
+
+<script>
+    const formulaire =
+        document.getElementById("inscription-form");
+
+    const message =
+        document.getElementById("inscription-message");
+
+    const bouton =
+        document.getElementById("inscription-button");
+
+    formulaire.addEventListener("submit", async (event) => {
+
+        event.preventDefault();
+
+        const identifiant =
+            document.getElementById("identifiant").value.trim();
+
+        const motDePasse =
+            document.getElementById("mot-de-passe").value;
+
+        const confirmation =
+            document.getElementById("confirmation").value;
+
+        message.className = "auth-message";
+        message.textContent = "";
+
+        if (motDePasse !== confirmation) {
+
+            message.className =
+                "auth-message error";
+
+            message.textContent =
+                "Les deux mots de passe ne correspondent pas.";
+
+            return;
+        }
+
+        bouton.disabled = true;
+        bouton.textContent = "Création...";
+
+        try {
+
+            await inscrire(
+                identifiant,
+                motDePasse
+            );
+
+            message.className =
+                "auth-message success";
+
+            message.textContent =
+                "Compte créé ! Redirection...";
+
+            setTimeout(() => {
+                window.location.href =
+                    "compte.html";
+            }, 700);
+
+        } catch (error) {
+
+            console.error(error);
+
+            message.className =
+                "auth-message error";
+
+            if (
+                error.message &&
+                error.message.includes("duplicate")
+            ) {
+                message.textContent =
+                    "Cet identifiant est déjà utilisé.";
+            } else {
+                message.textContent =
+                    error.message ||
+                    "Impossible de créer le compte.";
+            }
+
+            bouton.disabled = false;
+            bouton.textContent =
+                "Créer mon compte";
+        }
+    });
+</script>
+
+</body>
+</html>

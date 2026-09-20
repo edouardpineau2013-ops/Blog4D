@@ -286,3 +286,22 @@ document.addEventListener("DOMContentLoaded", () => {
     console.log("Blog des 4èmes D chargé !");
 
 });
+
+async function mettreAJourCompte() {
+
+    const lien = document.getElementById("account-link");
+
+    if (!lien) return;
+
+    const utilisateur = await utilisateurConnecte();
+
+    if (utilisateur) {
+        lien.textContent = "Mon compte";
+        lien.href = "compte.html";
+    } else {
+        lien.textContent = "Se connecter";
+        lien.href = "connexion.html";
+    }
+}
+
+mettreAJourCompte();
