@@ -6,6 +6,11 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const echapperHTML = (texte) => String(texte ?? "").replace(/[&<>'"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#039;",'"':"&quot;"}[c]));
     const afficherDate = date => new Date(date).toLocaleString("fr-FR", {dateStyle:"long", timeStyle:"short"});
+    const versDateLocale = date => {
+        const d = new Date(date);
+        const pad = n => String(n).padStart(2, "0");
+        return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    };
 
     async function chargerEvenements() {
         liste.innerHTML = '<div class="empty-state"><div class="empty-icon">⏳</div><h3>Chargement...</h3></div>';
@@ -28,32 +33,60 @@ document.addEventListener("DOMContentLoaded", async () => {
                 <p>${echapperHTML(e.description).replace(/\n/g,"<br>")}</p>
                 ${e.lieu ? `<p><strong>Lieu :</strong> ${echapperHTML(e.lieu)}</p>` : ""}
                 <div class="post-author">Publié par <strong>${echapperHTML(e.auteur_identifiant || "Utilisateur")}</strong> le ${afficherDate(e.created_at)}${e.updated_at ? ` · modifié le ${afficherDate(e.updated_at)}` : ""}</div>
-                ${admin ? `<div class="admin-actions"><button class="secondary-button admin-edit" data-id="${e.id}">Modifier</button><button class="danger-button admin-delete" data-id="${e.id}">Supprimer</button></div>` : ""}
+                ${admin ? `<div class="admin-actions"><button type="button" class="secondary-button admin-edit" data-id="${e.id}">Modifier</button><button type="button" class="danger-button admin-delete" data-id="${e.id}">Supprimer</button></div>` : ""}
             </article>`).join("");
 
-        if (admin) {
-            liste.querySelectorAll(".admin-delete").forEach(button => button.addEventListener("click", async () => {
-                if (!confirm("Supprimer cet événement ?")) return;
-                const {error} = await supabaseClient.from("evenements").delete().eq("id", button.dataset.id);
-                if (error) return alert("Suppression impossible : " + error.message);
-                await chargerEvenements();
-            }));
-            liste.querySelectorAll(".admin-edit").forEach(button => button.addEventListener("click", async () => {
-                const item = data.find(e => String(e.id) === button.dataset.id);
-                if (!item) return;
-                const titre = prompt("Nouveau titre :", item.titre);
-                if (titre === null) return;
-                const description = prompt("Nouvelle description :", item.description);
-                if (description === null) return;
-                const date = prompt("Nouvelle date (format ISO, ex. 2026-10-20T18:00:00+02:00) :", item.date_evenement);
-                if (date === null) return;
-                const lieu = prompt("Nouveau lieu :", item.lieu || "");
-                if (lieu === null) return;
-                const {error} = await supabaseClient.from("evenements").update({titre:titre.trim(), description:description.trim(), date_evenement:new Date(date).toISOString(), lieu:lieu.trim() || null, updated_at:new Date().toISOString()}).eq("id", item.id);
-                if (error) return alert("Modification impossible : " + error.message);
-                await chargerEvenements();
-            }));
-        }
+        if (!admin) return;
+
+        liste.querySelectorAll(".admin-delete").forEach(button => button.addEventListener("click", async () => {
+            const id = button.dataset.id;
+            if (!confirm("Supprimer définitivement cet événement ?")) return;
+            button.disabled = true;
+            const {data: deleted, error} = await supabaseClient.from("evenements").delete().eq("id", id).select("id");
+            if (error) {
+                button.disabled = false;
+                console.error("Erreur suppression événement :", error);
+                alert("Suppression impossible : " + error.message);
+                return;
+            }
+            if (!deleted?.length) {
+                button.disabled = false;
+                alert("Aucun événement n’a été supprimé. Vérifie les politiques RLS Supabase de l’administrateur.");
+                return;
+            }
+            await chargerEvenements();
+        }));
+
+        liste.querySelectorAll(".admin-edit").forEach(button => button.addEventListener("click", async () => {
+            const item = data.find(e => String(e.id) === button.dataset.id);
+            if (!item) return;
+            const titre = prompt("Nouveau titre :", item.titre);
+            if (titre === null) return;
+            const description = prompt("Nouvelle description :", item.description);
+            if (description === null) return;
+            const date = prompt("Nouvelle date et heure :", versDateLocale(item.date_evenement));
+            if (date === null) return;
+            const lieu = prompt("Nouveau lieu :", item.lieu || "");
+            if (lieu === null) return;
+            if (!titre.trim() || !description.trim() || Number.isNaN(new Date(date).getTime())) {
+                alert("Les informations saisies sont invalides.");
+                return;
+            }
+            button.disabled = true;
+            const {data: updated, error} = await supabaseClient.from("evenements").update({titre:titre.trim(), description:description.trim(), date_evenement:new Date(date).toISOString(), lieu:lieu.trim() || null, updated_at:new Date().toISOString()}).eq("id", item.id).select("id");
+            if (error) {
+                button.disabled = false;
+                console.error("Erreur modification événement :", error);
+                alert("Modification impossible : " + error.message);
+                return;
+            }
+            if (!updated?.length) {
+                button.disabled = false;
+                alert("Aucun événement n’a été modifié. Vérifie les politiques RLS Supabase de l’administrateur.");
+                return;
+            }
+            await chargerEvenements();
+        }));
     }
 
     try {
