@@ -91,7 +91,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             const titre = formulaire.elements.titre.value.trim();
             const contenu = formulaire.elements.contenu.value.trim();
             if (!titre || !contenu) return alert("Remplis le titre et le contenu.");
-            const profil = await obtenirProfil();
+            const moderation = analyserContenu(titre + " " + contenu);\n            if (!moderation.autorise) return alert("Publication refusée : ce contenu contient un terme interdit.");\n            const profil = await obtenirProfil();
             const bouton = formulaire.querySelector("button[type='submit']");
             bouton.disabled = true;
             const {error} = await supabaseClient.from("actualites").insert({titre, contenu, auteur_id:actuel.id, auteur_identifiant:profil?.identifiant || "Utilisateur"});
