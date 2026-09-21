@@ -26,28 +26,56 @@ document.addEventListener("DOMContentLoaded", async () => {
                 <h3>${echapperHTML(a.titre)}</h3>
                 <p>${echapperHTML(a.contenu).replace(/\n/g,"<br>")}</p>
                 <div class="post-author">Publié par <strong>${echapperHTML(a.auteur_identifiant || "Utilisateur")}</strong>${a.updated_at ? ` · modifié le ${afficherDate(a.updated_at)}` : ""}</div>
-                ${admin ? `<div class="admin-actions"><button class="secondary-button admin-edit" data-id="${a.id}">Modifier</button><button class="danger-button admin-delete" data-id="${a.id}">Supprimer</button></div>` : ""}
+                ${admin ? `<div class="admin-actions"><button type="button" class="secondary-button admin-edit" data-id="${a.id}">Modifier</button><button type="button" class="danger-button admin-delete" data-id="${a.id}">Supprimer</button></div>` : ""}
             </article>`).join("");
 
-        if (admin) {
-            liste.querySelectorAll(".admin-delete").forEach(button => button.addEventListener("click", async () => {
-                if (!confirm("Supprimer cette actualité ?")) return;
-                const {error} = await supabaseClient.from("actualites").delete().eq("id", button.dataset.id);
-                if (error) return alert("Suppression impossible : " + error.message);
-                await chargerActualites();
-            }));
-            liste.querySelectorAll(".admin-edit").forEach(button => button.addEventListener("click", async () => {
-                const item = data.find(a => String(a.id) === button.dataset.id);
-                if (!item) return;
-                const titre = prompt("Nouveau titre :", item.titre);
-                if (titre === null) return;
-                const contenu = prompt("Nouveau contenu :", item.contenu);
-                if (contenu === null) return;
-                const {error} = await supabaseClient.from("actualites").update({titre:titre.trim(), contenu:contenu.trim(), updated_at:new Date().toISOString()}).eq("id", item.id);
-                if (error) return alert("Modification impossible : " + error.message);
-                await chargerActualites();
-            }));
-        }
+        if (!admin) return;
+
+        liste.querySelectorAll(".admin-delete").forEach(button => button.addEventListener("click", async () => {
+            const id = button.dataset.id;
+            if (!confirm("Supprimer définitivement cette actualité ?")) return;
+            button.disabled = true;
+            const {data: deleted, error} = await supabaseClient.from("actualites").delete().eq("id", id).select("id");
+            if (error) {
+                button.disabled = false;
+                console.error("Erreur suppression actualité :", error);
+                alert("Suppression impossible : " + error.message);
+                return;
+            }
+            if (!deleted?.length) {
+                button.disabled = false;
+                alert("Aucune actualité n’a été supprimée. Vérifie les politiques RLS Supabase de l’administrateur.");
+                return;
+            }
+            await chargerActualites();
+        }));
+
+        liste.querySelectorAll(".admin-edit").forEach(button => button.addEventListener("click", async () => {
+            const item = data.find(a => String(a.id) === button.dataset.id);
+            if (!item) return;
+            const titre = prompt("Nouveau titre :", item.titre);
+            if (titre === null) return;
+            const contenu = prompt("Nouveau contenu :", item.contenu);
+            if (contenu === null) return;
+            if (!titre.trim() || !contenu.trim()) {
+                alert("Le titre et le contenu ne peuvent pas être vides.");
+                return;
+            }
+            button.disabled = true;
+            const {data: updated, error} = await supabaseClient.from("actualites").update({titre:titre.trim(), contenu:contenu.trim(), updated_at:new Date().toISOString()}).eq("id", item.id).select("id");
+            if (error) {
+                button.disabled = false;
+                console.error("Erreur modification actualité :", error);
+                alert("Modification impossible : " + error.message);
+                return;
+            }
+            if (!updated?.length) {
+                button.disabled = false;
+                alert("Aucune actualité n’a été modifiée. Vérifie les politiques RLS Supabase de l’administrateur.");
+                return;
+            }
+            await chargerActualites();
+        }));
     }
 
     try {
