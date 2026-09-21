@@ -1,4 +1,4 @@
-const ADMIN_USER_ID = "46bff939-33b6-48a4-b013-2bf2f4035464";
+const ADMIN_USER_ID = "ee633883-9e1b-45b4-8e21-94ba26ab1897";
 const ADMIN_IDENTIFIANT = "Edouard";
 
 async function estAdmin() {
