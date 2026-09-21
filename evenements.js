@@ -104,7 +104,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             const dateEvenement = formulaire.elements.date_evenement.value;
             const lieu = formulaire.elements.lieu.value.trim();
             if (!titre || !description || !dateEvenement) return alert("Remplis le titre, la description et la date.");
-            const profil = await obtenirProfil();
+            const moderation = analyserContenu(titre + " " + description + " " + lieu);\n            if (!moderation.autorise) return alert("Publication refusée : ce contenu contient un terme interdit.");\n            const profil = await obtenirProfil();
             const bouton = formulaire.querySelector("button[type='submit']");
             bouton.disabled = true;
             const {error} = await supabaseClient.from("evenements").insert({titre,description,date_evenement:new Date(dateEvenement).toISOString(),lieu:lieu || null,auteur_id:actuel.id,auteur_identifiant:profil?.identifiant || "Utilisateur"});
