@@ -28,15 +28,27 @@
 <input id="titre" name="titre" type="text" maxlength="150" required placeholder="Ex. Théorème de Pythagore">
 <label for="contenu">Texte du cours <span>(facultatif si une photo est ajoutée)</span></label>
 <textarea id="contenu" name="contenu" maxlength="10000" rows="8" placeholder="Écris ou colle le cours ici..."></textarea>
-<label for="image">Photo du cours <span>(facultative si du texte est ajouté)</span></label>
-<input id="image" name="image" type="file" accept="image/jpeg,image/png,image/webp,image/gif">
-<small class="form-help">Une photo peut remplacer le texte. Aucun OCR n'est effectué.</small>
+<label for="image">Photos du cours <span>(facultatives si du texte est ajouté)</span></label>
+<input id="image" name="image" type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple>
+<small class="form-help">Tu peux sélectionner plusieurs photos. Une photo peut remplacer le texte. Aucun OCR n'est effectué.</small>
 <div id="apercu-image" class="course-image-preview" hidden></div>
 <button type="submit">Publier le cours</button>
 </form>
 </section>
 <section class="section-card"><div id="liste-cours" class="cards-grid"></div></section>
 </main>
+
+<div id="course-lightbox" class="course-lightbox" hidden>
+    <div class="course-lightbox-backdrop" data-lightbox-close></div>
+    <div class="course-lightbox-dialog" role="dialog" aria-modal="true" aria-labelledby="lightbox-titre">
+        <button type="button" class="course-lightbox-close" aria-label="Fermer" data-lightbox-close>×</button>
+        <div id="lightbox-matiere" class="article-tag"></div>
+        <h2 id="lightbox-titre"></h2>
+        <div id="lightbox-contenu" class="course-lightbox-content"></div>
+        <div id="lightbox-images" class="course-lightbox-images"></div>
+        <div id="lightbox-auteur" class="post-author"></div>
+    </div>
+</div>
 <footer><div class="footer-content"><div><strong>Blog des 4D</strong><p>La vie de la classe, au même endroit.</p></div><div class="footer-right"><span>© 2026</span><span>•</span><span>4èmes D</span></div></div></footer>
 <button id="back-to-top" class="back-to-top" type="button" aria-label="Retour en haut">↑</button>
 </body>
