@@ -25,6 +25,7 @@ export default async function handler(req, res) {
 
         const apiKey = process.env.RESEND_API_KEY;
         if (!apiKey) {
+            console.error("RESEND_API_KEY est absente de l'environnement Vercel.");
             return res.status(500).json({ error: "Le service d'envoi n'est pas encore configuré." });
         }
 
@@ -43,14 +44,34 @@ export default async function handler(req, res) {
             })
         });
 
-        const result = await response.json();
+        const result = await response.json().catch(() => ({}));
+
+        console.log("Réponse Resend :", {
+            status: response.status,
+            ok: response.ok,
+            result
+        });
 
         if (!response.ok) {
-            console.error("Erreur Resend :", result);
-            return res.status(502).json({ error: "Le message n'a pas pu être envoyé." });
+            const detail = result?.message || result?.name || "Réponse invalide de Resend.";
+            return res.status(502).json({
+                error: `Resend a refusé l'envoi : ${detail}`
+            });
         }
 
-        return res.status(200).json({ success: true });
+        if (!result?.id) {
+            console.error("Resend a répondu sans identifiant d'e-mail :", result);
+            return res.status(502).json({
+                error: "Resend n'a pas confirmé l'envoi du message."
+            });
+        }
+
+        console.log("E-mail Resend créé :", result.id);
+
+        return res.status(200).json({
+            success: true,
+            emailId: result.id
+        });
     } catch (error) {
         console.error("Erreur API contact :", error);
         return res.status(500).json({ error: "Une erreur est survenue lors de l'envoi." });
