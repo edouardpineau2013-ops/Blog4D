@@ -10,16 +10,20 @@ export default async function handler(req, res) {
             return res.status(200).json({ success: true });
         }
 
-        if (!nom?.trim() || !email?.trim() || !message?.trim()) {
-            return res.status(400).json({ error: "Tous les champs sont obligatoires." });
+        const nomNettoye = nom?.trim() || "";
+        const emailNettoye = email?.trim() || "";
+        const messageNettoye = message?.trim() || "";
+
+        if (!nomNettoye || !messageNettoye) {
+            return res.status(400).json({ error: "Le nom et le message sont obligatoires." });
         }
 
         const emailValide = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailValide.test(email.trim())) {
+        if (emailNettoye && !emailValide.test(emailNettoye)) {
             return res.status(400).json({ error: "Adresse e-mail invalide." });
         }
 
-        if (nom.trim().length > 100 || email.trim().length > 254 || message.trim().length > 5000) {
+        if (nomNettoye.length > 100 || emailNettoye.length > 254 || messageNettoye.length > 5000) {
             return res.status(400).json({ error: "Un des champs est trop long." });
         }
 
@@ -29,19 +33,24 @@ export default async function handler(req, res) {
             return res.status(500).json({ error: "Le service d'envoi n'est pas encore configuré." });
         }
 
+        const emailData = {
+            from: "Blog 4D <onboarding@resend.dev>",
+            to: ["edouard.pineau.2013@gmail.com"],
+            subject: `Nouveau message du Blog 4D — ${nomNettoye}`,
+            text: `Nom : ${nomNettoye}\nE-mail : ${emailNettoye || "Non renseigné"}\n\nMessage :\n${messageNettoye}`
+        };
+
+        if (emailNettoye) {
+            emailData.reply_to = emailNettoye;
+        }
+
         const response = await fetch("https://api.resend.com/emails", {
             method: "POST",
             headers: {
                 "Authorization": `Bearer ${apiKey}`,
                 "Content-Type": "application/json"
             },
-            body: JSON.stringify({
-                from: "Blog 4D <onboarding@resend.dev>",
-                to: ["edouard.pineau.2013@gmail.com"],
-                reply_to: email.trim(),
-                subject: `Nouveau message du Blog 4D — ${nom.trim()}`,
-                text: `Nom : ${nom.trim()}\nE-mail : ${email.trim()}\n\nMessage :\n${message.trim()}`
-            })
+            body: JSON.stringify(emailData)
         });
 
         const result = await response.json().catch(() => ({}));
