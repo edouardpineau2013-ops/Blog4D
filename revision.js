@@ -193,24 +193,52 @@ function retourFiches(){
     document.getElementById("revision-accueil").scrollIntoView({behavior:"smooth",block:"start"});
 }
 
+function modeUtilisablePourQuestion(q,mode){
+    if(mode==="mots_meles")return !!motPourMotsMeles(q);
+    if(mode==="mots_croises")return !!extraireMotCroise(q);
+    return !!MODES_REVISION[mode]?.types.includes(q?.type);
+}
+
 function lancerRevision(){
     const nombre=Number(document.getElementById("nombre-a-reviser").value);
     const modes=[...document.querySelectorAll('input[name="revision-mode"]:checked')].map(x=>x.value);
     const status=document.getElementById("revision-config-status");
+
     if(!nombre||nombre<1||nombre>ficheEtude.questions.length){
         status.textContent="Choisis un nombre de questions valide.";
-        status.className="revision-status error"; return;
+        status.className="revision-status error";
+        return;
     }
     if(!modes.length){
         status.textContent="Sélectionne au moins un mode de révision.";
-        status.className="revision-status error"; return;
+        status.className="revision-status error";
+        return;
     }
-    const questions=melanger(ficheEtude.questions).slice(0,nombre);
-    session={questions,modes,index:0,score:0,modesParQuestion:questions.map(q=>{
-        const compatibles=modes.filter(mode=>MODES_REVISION[mode]?.types.includes(q.type));
-        const disponibles=compatibles.length?compatibles:Object.keys(MODES_REVISION).filter(mode=>MODES_REVISION[mode].types.includes(q.type));
-        return disponibles.length ? disponibles[Math.floor(Math.random()*disponibles.length)] : "questions";
-    })};
+
+    const questionsEligibles=ficheEtude.questions.filter(q=>modes.some(mode=>modeUtilisablePourQuestion(q,mode)));
+    if(questionsEligibles.length<nombre){
+        status.textContent="Avec les modes sélectionnés, seules "+questionsEligibles.length+" question"+(questionsEligibles.length>1?"s":"")+" sont utilisables.";
+        status.className="revision-status error";
+        return;
+    }
+
+    const questions=melanger(questionsEligibles).slice(0,nombre);
+    session={
+        questions,
+        modes,
+        index:0,
+        score:0,
+        modesParQuestion:questions.map(q=>{
+            const compatibles=modes.filter(mode=>modeUtilisablePourQuestion(q,mode));
+            const disponibles=compatibles.length
+                ? compatibles
+                : Object.keys(MODES_REVISION).filter(mode=>modeUtilisablePourQuestion(q,mode));
+            return disponibles.length
+                ? disponibles[Math.floor(Math.random()*disponibles.length)]
+                : "questions";
+        })
+    };
+
     afficherQuestionSession();
 }
 
