@@ -464,9 +464,50 @@ function afficherQuestionSession(){
     }else if(mode==="mots_croises"){
         const bouton=document.getElementById("verifier-mots-croises"),inputs=[...el.querySelectorAll(".revision-crossword-cell input")];
         const entreePour=(input,direction)=>{const r=Number(input.dataset.crossRow),c=Number(input.dataset.crossCol);return session.motsCroises.entries.find(entry=>entry.dir===direction&&Array.from({length:entry.solution.length},(_,i)=>[entry.row+(entry.dir==="down"?i:0),entry.col+(entry.dir==="across"?i:0)]).some(([rr,cc])=>rr===r&&cc===c));};
+        const celluleCroisee=(row,col)=>inputs.find(x=>Number(x.dataset.crossRow)===row&&Number(x.dataset.crossCol)===col);
+
         inputs.forEach(input=>{
-            input.addEventListener("input",()=>{input.value=normaliserTexte(input.value).replace(/\s/g,"").slice(-1).toUpperCase();input.classList.remove("incorrect");const entry=entreePour(input,"across")||entreePour(input,"down");if(!entry)return;const r=Number(input.dataset.crossRow),c=Number(input.dataset.crossCol),i=entry.dir==="down"?r-entry.row:c-entry.col;inputs.find(x=>Number(x.dataset.crossRow)===entry.row+(entry.dir==="down"?i+1:0)&&Number(x.dataset.crossCol)===entry.col+(entry.dir==="across"?i+1:0))?.focus();});
-            input.addEventListener("keydown",event=>{if(event.key!=="Backspace"||input.value)return;event.preventDefault();const entry=entreePour(input,"across")||entreePour(input,"down");if(!entry)return;const r=Number(input.dataset.crossRow),c=Number(input.dataset.crossCol),i=entry.dir==="down"?r-entry.row:c-entry.col;inputs.find(x=>Number(x.dataset.crossRow)===entry.row+(entry.dir==="down"?i-1:0)&&Number(x.dataset.crossCol)===entry.col+(entry.dir==="across"?i-1:0))?.focus();});
+            input.addEventListener("input",()=>{
+                input.value=normaliserTexte(input.value).replace(/\s/g,"").slice(-1).toUpperCase();
+                input.classList.remove("incorrect");
+                const entry=entreePour(input,"across")||entreePour(input,"down");
+                if(!entry)return;
+                const r=Number(input.dataset.crossRow),c=Number(input.dataset.crossCol),i=entry.dir==="down"?r-entry.row:c-entry.col;
+                celluleCroisee(
+                    entry.row+(entry.dir==="down"?i+1:0),
+                    entry.col+(entry.dir==="across"?i+1:0)
+                )?.focus();
+            });
+
+            input.addEventListener("keydown",event=>{
+                const directions={
+                    ArrowLeft:[0,-1],
+                    ArrowRight:[0,1],
+                    ArrowUp:[-1,0],
+                    ArrowDown:[1,0]
+                };
+
+                if(directions[event.key]){
+                    event.preventDefault();
+                    const [dr,dc]=directions[event.key];
+                    let row=Number(input.dataset.crossRow)+dr;
+                    let col=Number(input.dataset.crossCol)+dc;
+                    const cible=celluleCroisee(row,col);
+                    if(cible)cible.focus();
+                    return;
+                }
+
+                if(event.key==="Backspace"&&!input.value){
+                    event.preventDefault();
+                    const entry=entreePour(input,"across")||entreePour(input,"down");
+                    if(!entry)return;
+                    const r=Number(input.dataset.crossRow),c=Number(input.dataset.crossCol),i=entry.dir==="down"?r-entry.row:c-entry.col;
+                    celluleCroisee(
+                        entry.row+(entry.dir==="down"?i-1:0),
+                        entry.col+(entry.dir==="across"?i-1:0)
+                    )?.focus();
+                }
+            });
         });
         el.querySelectorAll(".revision-crossword-clue").forEach(clue=>clue.onclick=()=>{const [number,direction]=clue.dataset.crossEntry.split("-"),entry=session.motsCroises.entries.find(x=>String(x.number)===number&&x.dir===direction);inputs.find(x=>Number(x.dataset.crossRow)===entry?.row&&Number(x.dataset.crossCol)===entry?.col)?.focus();});
         bouton?.addEventListener("click",()=>{
