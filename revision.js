@@ -237,7 +237,7 @@ function melangerLettres(texte){
 }
 
 function motMystere(texte){
-    const mot=String(texte||"").trim().split(/\\s+/)[0];
+    const mot=String(texte||"").trim().split(/\s+/)[0];
     if(mot.length<3)return {masque:mot,solution:mot};
     const lettres=[...mot];
     const visibles=Math.max(1,Math.ceil(lettres.length*.35));
@@ -246,7 +246,36 @@ function motMystere(texte){
 }
 
 function phraseMelangee(texte){
-    return melanger(String(texte||"").trim().split(/\\s+/).filter(Boolean));
+    return melanger(String(texte||"").trim().split(/\s+/).filter(Boolean));
+}
+
+function construireGrilleMotsMeles(mot,taille=8){
+    const motNet=normaliserTexte(mot).replace(/\s/g,"");
+    const n=Math.max(taille,Math.min(12,Math.max(6,motNet.length+2)));
+    const grille=Array.from({length:n},()=>Array(n).fill(""));
+    const directions=melanger([[0,1],[1,0],[1,1],[-1,1]]);
+    let placement=null;
+    for(const [dr,dc] of directions){
+        for(let tentative=0;tentative<100&&!placement;tentative++){
+            const r0=Math.floor(Math.random()*n),c0=Math.floor(Math.random()*n);
+            const r1=r0+dr*(motNet.length-1),c1=c0+dc*(motNet.length-1);
+            if(r1<0||r1>=n||c1<0||c1>=n)continue;
+            let ok=true;
+            for(let i=0;i<motNet.length;i++){
+                const r=r0+dr*i,col=c0+dc*i;
+                if(grille[r][col]&&grille[r][col]!==motNet[i]){ok=false;break;}
+            }
+            if(!ok)continue;
+            for(let i=0;i<motNet.length;i++)grille[r0+dr*i][c0+dc*i]=motNet[i];
+            placement=[r0,c0,r1,c1];
+        }
+        if(placement)break;
+    }
+    const lettres="abcdefghijklmnopqrstuvwxyz";
+    for(let r=0;r<n;r++)for(let col=0;col<n;col++){
+        if(!grille[r][col])grille[r][col]=lettres[Math.floor(Math.random()*lettres.length)];
+    }
+    return {grille,mot:motNet,placement};
 }
 
 function afficherQuestionSession(){
@@ -283,7 +312,10 @@ function afficherQuestionSession(){
         }else if(mode==="associer"){
             contenu+='<h3>Associer</h3><p>Associe cet élément à la bonne information.</p><p class="revision-statement">'+escapeHtml(v[0])+'</p><div class="revision-mode-choices">'+choix.map(x=>'<button type="button" class="secondary-button revision-choice" data-answer="'+escapeHtml(x)+'">'+escapeHtml(x)+'</button>').join("")+'</div>';
         }else{
-            contenu+='<h3>Glisser-déposer</h3><p>Choisis l’étiquette à placer avec cet élément.</p><p class="revision-statement">'+escapeHtml(v[0])+'</p><div class="revision-mode-choices">'+choix.map(x=>'<button type="button" class="secondary-button revision-choice" draggable="true" data-answer="'+escapeHtml(x)+'">'+escapeHtml(x)+'</button>').join("")+'</div>';
+            session.dragAnswer=bonne;
+            contenu+='<h3>Glisser-déposer</h3><p>Fais glisser la bonne réponse dans la zone.</p><p class="revision-statement">'+escapeHtml(v[0])+'</p>'+
+                '<div class="revision-drag-options">'+choix.map(x=>'<button type="button" class="secondary-button revision-drag-item" draggable="true" data-answer="'+escapeHtml(x)+'">'+escapeHtml(x)+'</button>').join("")+'</div>'+
+                '<div id="revision-drop-zone" class="revision-drop-zone" tabindex="0">Dépose la réponse ici</div>';
         }
     }else if(mode==="anagramme"||mode==="lettres_melangees"){
         contenu+='<h3>'+escapeHtml(mode==="anagramme"?"Remets les lettres dans le bon ordre.":"Retrouve le mot.")+'</h3><p class="revision-letter-game">'+escapeHtml(melangerLettres(v[0]||bonne))+'</p><input id="reponse-revision" type="text" placeholder="Ta réponse"><button type="button" class="primary-button" id="valider-reponse">Valider</button>';
@@ -298,8 +330,11 @@ function afficherQuestionSession(){
     }else if(mode==="mots_croises"){
         contenu+='<h3>Mots croisés</h3><p>Retrouve le terme correspondant à cette définition.</p><p class="revision-statement">'+escapeHtml(bonne||promptQuestion(q))+'</p><input id="reponse-revision" type="text" placeholder="Écris le terme"><button type="button" class="primary-button" id="valider-reponse">Valider</button>';
     }else if(mode==="mots_meles"){
-        const lettres=[...normaliserTexte(v[0]||bonne).replace(/\s/g,"")],bruit=melanger("abcdefghijklmnopqrstuvwxyz".split("")).slice(0,Math.min(10,Math.max(4,lettres.length))),grille=melanger([...lettres,...bruit]).join(" ");
-        contenu+='<h3>Mots mêlés</h3><p>Retrouve le mot caché dans les lettres.</p><p class="revision-letter-game">'+escapeHtml(grille)+'</p><input id="reponse-revision" type="text" placeholder="Mot trouvé"><button type="button" class="primary-button" id="valider-reponse">Valider</button>';
+        const jeu=construireGrilleMotsMeles(v[0]||bonne);
+        session.motsMeles=jeu;
+        contenu+='<h3>Mots mêlés</h3><p>Retrouve le mot caché dans la grille.</p><div class="revision-word-grid" aria-label="Grille de mots mêlés">'+
+            jeu.grille.map(ligne=>'<div class="revision-word-grid-row">'+ligne.map(lettre=>'<span>'+escapeHtml(lettre.toUpperCase())+'</span>').join("")+'</div>').join("")+
+            '</div><input id="reponse-revision" type="text" placeholder="Mot trouvé"><button type="button" class="primary-button" id="valider-reponse">Valider</button>';
     }else if(mode==="intrus"){
         const choix=melanger([v[0],...ficheEtude.questions.filter(x=>x!==q).slice(0,3).map(x=>valeurs(x)[0]).filter(Boolean)]),intrus=choix[choix.length-1];
         session.intrus=intrus;
@@ -315,8 +350,22 @@ function afficherQuestionSession(){
     if(mode==="flashcards"){
         const reveal=document.getElementById("reveler-reponse");
         reveal.onclick=()=>{document.getElementById("reponse-cachee").hidden=false;reveal.textContent="Je connaissais la réponse";reveal.onclick=()=>{session.score++;session.index++;afficherQuestionSession();};};
-    }else if(mode==="qcm"||["paires","relier","associer","glisser_deposer"].includes(mode)){
+    }else if(mode==="qcm"||["paires","relier","associer"].includes(mode)){
         el.querySelectorAll(".revision-choice").forEach(button=>button.onclick=()=>enregistrerChoix(button.dataset.answer,bonne));
+    }else if(mode==="glisser_deposer"){
+        const zone=document.getElementById("revision-drop-zone");
+        el.querySelectorAll(".revision-drag-item").forEach(item=>{
+            item.addEventListener("dragstart",event=>event.dataTransfer?.setData("text/plain",item.dataset.answer||""));
+            item.addEventListener("click",()=>enregistrerChoix(item.dataset.answer,bonne));
+        });
+        if(zone){
+            zone.addEventListener("dragover",event=>event.preventDefault());
+            zone.addEventListener("drop",event=>{
+                event.preventDefault();
+                const reponse=event.dataTransfer?.getData("text/plain")||"";
+                enregistrerChoix(reponse,bonne);
+            });
+        }
     }else if(mode==="vrai_faux"){
         document.getElementById("vf-vrai").onclick=()=>enregistrerChoix("vrai",session.vraiFaux.correct?"vrai":"faux");
         document.getElementById("vf-faux").onclick=()=>enregistrerChoix("faux",session.vraiFaux.correct?"vrai":"faux");
@@ -345,7 +394,7 @@ function validerReponse(){
     if(!session)return;
     const q=session.questions[session.index],mode=session.modesParQuestion[session.index];
     const champ=document.getElementById("reponse-revision"),bouton=document.getElementById("valider-reponse"),feedback=document.getElementById("feedback-revision");
-    const attendu=mode==="definition_terme"?valeurs(q)[0]:mode==="timeline"?valeurs(q)[0]:mode==="mot_mystere"?session.mystere:mode==="phrase_reconstituer"?session.phraseReponse:mode==="mots_croises"?valeurs(q)[0]:mode==="mots_meles"?valeurs(q)[0]:mode==="anagramme"||mode==="lettres_melangees"?valeurs(q)[0]:valeurs(q)[1];
+    const attendu=mode==="definition_terme"?valeurs(q)[0]:mode==="timeline"?valeurs(q)[0]:mode==="mot_mystere"?session.mystere:mode==="phrase_reconstituer"?session.phraseReponse:mode==="mots_croises"?valeurs(q)[0]:mode==="mots_meles"?(session.motsMeles?.mot||valeurs(q)[0]):mode==="anagramme"||mode==="lettres_melangees"?valeurs(q)[0]:valeurs(q)[1];
     const resultat=evaluerReponse(attendu,champ.value);
     feedback.textContent=resultat.correct?"Bonne réponse. Continue comme ça.":"Réponse attendue : "+attendu;
     feedback.className="revision-feedback "+(resultat.correct?"success":"error");
