@@ -391,32 +391,59 @@ function afficherQuestionSession(){
         if(mode==="paires"){
             contenu+='<h3>Paires</h3><p>Choisis la définition qui correspond à la notion.</p><div class="revision-mode-choices">'+choix.map(x=>'<button type="button" class="secondary-button revision-choice" data-answer="'+escapeHtml(x)+'">'+escapeHtml(x)+'</button>').join("")+'</div>';
         }else if(mode==="relier"){
-            const sources=melanger([q,...ficheEtude.questions.filter(x=>x!==q)]).slice(0,Math.min(4,ficheEtude.questions.length));
-            const liens=sources.map((x,i)=>({id:"relier-"+i,gauche:valeurs(x)[0],droite:valeurs(x)[1],correct:x===q}));
-            session.relier=liens;
-            contenu+='<h3>Relier</h3><p>Clique sur un élément à gauche puis sur sa réponse à droite pour créer un trait.</p>'+
-                '<div class="revision-linking" id="revision-linking"><svg class="revision-link-lines" aria-hidden="true"></svg>'+
-                '<div class="revision-link-column">'+liens.map(x=>'<button type="button" class="revision-link-item revision-link-left" data-id="'+x.id+'">'+escapeHtml(x.gauche)+'</button>').join("")+'</div>'+
-                '<div class="revision-link-column">'+melanger(liens).map(x=>'<button type="button" class="revision-link-item revision-link-right" data-id="'+x.id+'">'+escapeHtml(x.droite)+'</button>').join("")+'</div></div>';
-        }else if(mode==="associer"){
-            contenu+='<h3>Associer</h3><p>Associe cet élément à la bonne information.</p><p class="revision-statement">'+escapeHtml(v[0])+'</p><div class="revision-mode-choices">'+choix.map(x=>'<button type="button" class="secondary-button revision-choice" data-answer="'+escapeHtml(x)+'">'+escapeHtml(x)+'</button>').join("")+'</div>';
-        }else{
-            session.dragAnswer=bonne;
-            contenu+='<h3>Glisser-déposer</h3><p>Fais glisser la bonne réponse dans la zone.</p><p class="revision-statement">'+escapeHtml(v[0])+'</p>'+
-                '<div class="revision-drag-options">'+choix.map(x=>'<button type="button" class="secondary-button revision-drag-item" draggable="true" data-answer="'+escapeHtml(x)+'">'+escapeHtml(x)+'</button>').join("")+'</div>'+
-                '<div id="revision-drop-zone" class="revision-drop-zone" tabindex="0">Dépose la réponse ici</div>';
-        }
-    }else if(mode==="anagramme"||mode==="lettres_melangees"){
-        contenu+='<h3>'+escapeHtml(mode==="anagramme"?"Remets les lettres dans le bon ordre.":"Retrouve le mot.")+'</h3><p class="revision-letter-game">'+escapeHtml(melangerLettres(v[0]||bonne))+'</p><input id="reponse-revision" type="text" placeholder="Ta réponse"><button type="button" class="primary-button" id="valider-reponse">Valider</button>';
-    }else if(mode==="mot_mystere"){
-        const m=motMystere(v[0]||bonne);session.mystere=m.solution;
-        contenu+='<h3>Quel est le mot mystère ?</h3><p class="revision-mystery-word">'+escapeHtml(m.masque)+'</p><input id="reponse-revision" type="text" placeholder="Mot"><button type="button" class="primary-button" id="valider-reponse">Valider</button>';
-    }else if(mode==="phrase_reconstituer"){
-        session.phraseReponse=bonne;
-        contenu+='<h3>Reconstitue la réponse.</h3><p class="revision-letter-game">'+escapeHtml(phraseMelangee(bonne).join(" / "))+'</p><input id="reponse-revision" type="text" placeholder="Phrase reconstituée"><button type="button" class="primary-button" id="valider-reponse">Valider</button>';
-    }else if(mode==="timeline"){
-        contenu+='<h3>'+escapeHtml(v[1])+'</h3><p>Quelle est la date ou période ?</p><input id="reponse-revision" type="text" placeholder="Date ou période"><button type="button" class="primary-button" id="valider-reponse">Valider</button>';
-    }else if(mode==="mots_croises"){
+        let selection=null;
+        const container=document.getElementById("revision-linking");
+        const svg=container?.querySelector(".revision-link-lines");
+        const relier=[];
+        const tracer=(g,d)=>{
+            const a=g.getBoundingClientRect(),b=d.getBoundingClientRect(),c=container.getBoundingClientRect();
+            const x1=a.right-c.left,y1=a.top+a.height/2-c.top,x2=b.left-c.left,y2=b.top+b.height/2-c.top;
+            const line=document.createElementNS("http://www.w3.org/2000/svg","line");
+            line.setAttribute("x1",x1);line.setAttribute("y1",y1);line.setAttribute("x2",x2);line.setAttribute("y2",y2);line.setAttribute("class","revision-link-line");
+            svg.appendChild(line);
+        };
+        const choisir=(button,cote)=>{
+            if(button.disabled)return;
+            if(selection&&selection.cote===cote){
+                selection.button.classList.remove("selected");
+                selection=null;
+                return;
+            }
+            if(cote==="gauche"){
+                if(selection)selection.button.classList.remove("selected");
+                selection={id:button.dataset.id,cote,button};
+                button.classList.add("selected");
+                return;
+            }
+            if(!selection||selection.cote!=="gauche")return;
+            const gauche=selection.button,id=button.dataset.id;
+            if(selection.id===id){
+                tracer(gauche,button);
+                gauche.disabled=true;button.disabled=true;
+                gauche.classList.remove("selected");
+                relier.push(id);
+                selection=null;
+                const feedback=document.getElementById("feedback-revision");
+                feedback.textContent="Bonne liaison.";
+                feedback.className="revision-feedback success";
+                if(relier.length===session.relier.length){
+                    session.score++;
+                    const suivant=document.createElement("button");
+                    suivant.type="button";suivant.className="primary-button";suivant.textContent="Question suivante";
+                    suivant.onclick=()=>{session.index++;afficherQuestionSession();};
+                    feedback.after(suivant);
+                }
+            }else{
+                const feedback=document.getElementById("feedback-revision");
+                feedback.textContent="Ce n’est pas la bonne paire. Essaie encore.";
+                feedback.className="revision-feedback error";
+                gauche.classList.remove("selected");
+                selection=null;
+            }
+        };
+        el.querySelectorAll(".revision-link-left").forEach(b=>b.onclick=()=>choisir(b,"gauche"));
+        el.querySelectorAll(".revision-link-right").forEach(b=>b.onclick=()=>choisir(b,"droite"));
+    }    }else if(mode==="mots_croises"){
         const croise=construireMotsCroises(ficheEtude.questions);
         session.motsCroises=croise;
         contenu+='<h3>Mots croisés</h3><p>Remplis la grille à partir des définitions.</p>'+rendreMotsCroises(croise)+
@@ -510,8 +537,7 @@ function afficherQuestionSession(){
                 feedback.className="revision-feedback error";
             }
         };
-    }else if(mode==="qcm"){
-        el.querySelectorAll(".revision-choice").forEach(button=>button.onclick=()=>enregistrerChoix(button.dataset.answer,bonne));
+
     }else if(mode==="glisser_deposer"){
         const zone=document.getElementById("revision-drop-zone");
         el.querySelectorAll(".revision-drag-item").forEach(item=>{
