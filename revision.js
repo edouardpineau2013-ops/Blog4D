@@ -632,8 +632,8 @@ function afficherQuestions(){
             '<div class="revision-summary-actions"><button type="button" class="secondary-button revision-edit" data-id="'+question.id+'">Éditer</button><button type="button" class="danger-button revision-delete" data-id="'+question.id+'">Supprimer</button></div></article>';
         }
         return '<article class="revision-question-card" data-question-id="'+question.id+'">'+
-        '<div class="revision-question-top"><div><span class="small-label">QUESTION '+(index+1)+'</span><h3>'+escapeHtml(type?.label||"Nouvelle question")+'</h3></div><button type="button" class="danger-button revision-delete" data-id="'+question.id+'">Supprimer</button></div>'+
-        '<label>Type de donnée</label><select class="revision-type-select"><option value="">Choisir un type...</option>'+
+        '<div class="revision-question-top" style="margin-left: 20px;margin-top: 10px;"><div><span class="small-label">QUESTION '+(index+1)+'</span><h3>'+escapeHtml(type?.label||"Nouvelle question")+'</h3></div><button type="button" class="danger-button revision-delete" data-id="'+question.id+'">Supprimer</button></div>'+
+        '<label style="margin-left: 20px;">Type de donnée</label><select class="revision-type-select"><option value="">Choisir un type...</option>'+
         Object.entries(TYPES_REVISION).map(([key,item])=>'<option value="'+key+'" '+(key===question.type?"selected":"")+'>'+escapeHtml(item.label)+'</option>').join("")+
         '</select>'+
         (type?'<div class="revision-fields">'+type.fields.map(([name,label,placeholder,inputType])=>
