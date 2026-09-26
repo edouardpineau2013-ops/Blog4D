@@ -941,7 +941,9 @@ footer{padding:35px 20px;background:var(--primary);color:white}.footer-content{m
     max-width:100%;
     overflow:auto;
     padding:0 0 14px;
-    margin-top:-8px;
+    margin-top:-22px;
+    position:relative;
+    z-index:1;
 }
 .revision-crossword{
     display:inline-flex;
