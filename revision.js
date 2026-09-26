@@ -373,7 +373,7 @@ function construireMotsCroises(questions,size=13){
 }
 function rendreMotsCroises(croise){
     const numeros={};croise.entries.forEach(e=>numeros[e.row+"-"+e.col]=e.number);
-    const grille='<div class="revision-crossword-wrap"><div class="revision-crossword" style="--cross-cols:'+croise.size+';--cross-rows:'+croise.rows+'">'+croise.grid.map((row,r)=>'<div class="revision-crossword-row">'+row.map((cell,col)=>{
+    const grille='<div class="revision-crossword-wrap"><div class="revision-crossword" style="--cross-size:'+croise.size+'">'+croise.grid.map((row,r)=>'<div class="revision-crossword-row">'+row.map((cell,col)=>{
         if(!cell)return '<span class="revision-crossword-cell empty"></span>';
         const n=numeros[r+"-"+col];
         return '<label class="revision-crossword-cell">'+(n?'<small>'+n+'</small>':"")+'<input maxlength="1" autocomplete="off" data-cross-row="'+r+'" data-cross-col="'+col+'"></label>';
