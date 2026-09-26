@@ -256,7 +256,7 @@ function afficherQuestionSession(){
     }else if(mode==="definition_terme"){
         contenu+='<h3>'+escapeHtml(bonne)+'</h3><p>Quel est le terme correspondant ?</p><input id="reponse-revision" type="text" placeholder="Écris le terme"><button type="button" class="primary-button" id="valider-reponse">Valider</button>';
     }else if(mode==="terme_definition"){
-        contenu+='<h3>'+escapeHtml(v[0])+'</h3><p>Donne la définition ou l'explication.</p><textarea id="reponse-revision" rows="4" placeholder="Écris ta réponse..."></textarea><button type="button" class="primary-button" id="valider-reponse">Valider</button>';
+        contenu+='<h3>'+escapeHtml(v[0])+'</h3><p>Donne la définition ou l’explication.</p><textarea id="reponse-revision" rows="4" placeholder="Écris ta réponse..."></textarea><button type="button" class="primary-button" id="valider-reponse">Valider</button>';
     }else if(mode==="texte_trous"){
         const mots=bonne.split(/\\s+/).filter(x=>x.length>3),mot=mots[0]||bonne;
         const texte=escapeHtml(bonne).replace(new RegExp(escapeHtml(mot),"i"),"____");
