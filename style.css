@@ -130,3 +130,35 @@ footer{padding:35px 20px;background:var(--primary);color:white}.footer-content{m
 
 /* Icônes SVG utilisées à la place des émojis */
 .emoji-svg{display:inline-block;width:1em;height:1em;object-fit:contain;vertical-align:-0.15em;}
+
+
+/* Révision */
+.revision-intro{max-width:760px;margin:-8px 0 20px;color:var(--muted)}
+.revision-fiches-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:25px}
+.revision-fiche-card{padding:24px;background:var(--surface-soft);border:1px solid var(--border);border-radius:17px;transition:transform .2s ease,box-shadow .2s ease}
+.revision-fiche-card:hover{transform:translateY(-3px);box-shadow:0 12px 30px rgba(16,11,58,.10)}
+.revision-fiche-card h3{margin:14px 0 7px;color:var(--primary);font-size:21px}
+.revision-fiche-card p{color:var(--muted);margin-bottom:5px}
+.revision-fiche-card small{color:var(--muted)}
+.revision-empty{grid-column:1/-1;margin-top:5px}
+.revision-editor{scroll-margin-top:100px}
+.revision-questions-heading{display:flex;align-items:center;justify-content:space-between;gap:15px;margin-top:15px;padding-top:20px;border-top:1px solid var(--border)}
+.revision-questions-heading h3{color:var(--primary);font-size:23px}
+.revision-questions-heading p{color:var(--muted);font-size:14px}
+.revision-question-list{display:flex;flex-direction:column;gap:16px;margin-top:18px}
+.revision-question-card{padding:22px;background:white;border:1px solid var(--border);border-radius:17px}
+.revision-question-top{display:flex;align-items:flex-start;justify-content:space-between;gap:15px;margin-bottom:15px}
+.revision-question-top h3{color:var(--primary);font-size:20px}
+.revision-question-card .danger-button{padding:8px 12px;font-size:13px;margin:0}
+.revision-question-card select{width:100%;padding:13px 15px;background:white;color:var(--text);border:1px solid rgba(16,11,58,.15);border-radius:11px;font:inherit;outline:none;margin-bottom:15px}
+.revision-fields{display:flex;flex-direction:column;gap:9px}
+.revision-fields label{color:var(--primary);font-size:14px;font-weight:800}
+.revision-fields input,.revision-fields textarea{width:100%;padding:13px 15px;background:white;color:var(--text);border:1px solid rgba(16,11,58,.15);border-radius:11px;font:inherit;outline:none}
+.revision-fields textarea{resize:vertical;min-height:100px}
+.revision-fields input:focus,.revision-fields textarea:focus,.revision-question-card select:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(16,11,58,.08)}
+.revision-form-actions{display:flex;justify-content:flex-end;margin-top:22px;padding-top:20px;border-top:1px solid var(--border)}
+.revision-status{margin-top:12px;font-weight:700}
+.revision-status.success{color:#28733c}
+.revision-status.error{color:#9f2638}
+@media (max-width:800px){.revision-fiches-grid{grid-template-columns:1fr 1fr}}
+@media (max-width:600px){.revision-fiches-grid{grid-template-columns:1fr}.revision-questions-heading{align-items:flex-start;flex-direction:column}.revision-question-top{flex-direction:column}.revision-form-actions{justify-content:stretch}.revision-form-actions .primary-button{width:100%;text-align:center}}
