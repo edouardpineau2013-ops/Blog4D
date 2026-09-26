@@ -539,67 +539,14 @@ function afficherQuestionSession(){
             }
         });
     }else if(mode==="mots_meles"){
-        const grille=document.getElementById("revision-word-grid");
-        let debut=null;
-        let selection=[];
-        const effacer=()=>{
-            selection.forEach(cell=>cell.classList.remove("selected"));
-            selection=[];
-            debut=null;
-        };
-        const cellule=(r,c)=>grille?.querySelector('[data-word-row="'+r+'"][data-word-col="'+c+'"]');
-        const validerSelection=()=>{
-            if(!selection.length)return;
-            const mot=selection.map(cell=>normaliserTexte(cell.textContent)).join("");
-            const inverse=[...mot].reverse().join("");
-            const correct=mot===session.motsMeles.mot||inverse===session.motsMeles.mot;
-            const feedback=document.getElementById("feedback-revision");
-            if(correct){
-                selection.forEach(cell=>cell.classList.add("found"));
-                marquerQuestionReussie();
-                feedback.textContent="Mot trouvé !";
-                feedback.className="revision-feedback success";
-                selection.forEach(cell=>cell.disabled=true);
-                const bouton=document.createElement("button");
-                bouton.type="button";
-                bouton.className="primary-button";
-                bouton.textContent="Question suivante";
-                bouton.onclick=()=>{session.index++;afficherQuestionSession();};
-                feedback.after(bouton);
-            }else{
-                feedback.textContent="Ce n’est pas le bon mot. Recommence.";
-                feedback.className="revision-feedback error";
-                effacer();
-            }
-        };
-        grille?.querySelectorAll(".revision-word-cell").forEach(cell=>cell.addEventListener("click",()=>{
-            if(cell.disabled)return;
-            const r=Number(cell.dataset.wordRow),c=Number(cell.dataset.wordCol);
-            if(!debut){
-                debut={r,c};
-                selection=[cell];
-                cell.classList.add("selected");
-                return;
-            }
-            const dr=Math.sign(r-debut.r),dc=Math.sign(c-debut.c);
-            const distance=Math.max(Math.abs(r-debut.r),Math.abs(c-debut.c));
-            if(distance===0||!(dr===0||dc===0||Math.abs(r-debut.r)===Math.abs(c-debut.c))){
-                effacer();
-                debut={r,c};
-                selection=[cell];
-                cell.classList.add("selected");
-                return;
-            }
-            selection.forEach(x=>x.classList.remove("selected"));
-            selection=[];
-            for(let i=0;i<=distance;i++){
-                const cible=cellule(debut.r+dr*i,debut.c+dc*i);
-                if(!cible){effacer();return;}
-                selection.push(cible);
-            }
-            selection.forEach(x=>x.classList.add("selected"));
-            validerSelection();
-        }));
+        const mot=motPourMotsMeles(q);
+        const grille=construireGrilleMotsMeles(mot);
+        session.motsMeles=grille;
+        if(!grille.placement){
+            contenu+='<h3>Mots mêlés</h3><p>Aucun mot exploitable n\'a pu être généré pour cette question.</p>';
+        }else{
+            contenu+='<h3>Mots mêlés</h3><p>'+escapeHtml(promptQuestion(q))+'</p><div id="revision-word-grid" class="revision-word-grid">'+grille.grille.map((row,r)=>'<div class="revision-word-grid-row">'+row.map((lettre,c)=>'<button type="button" class="revision-word-cell" data-word-row="'+r+'" data-word-col="'+c+'">'+escapeHtml(lettre.toUpperCase())+'</button>').join("")+'</div>').join("")+'</div><div class="revision-word-answer"><input id="reponse-revision" type="text" placeholder="Ou tape le mot ici" autocomplete="off"><button type="button" class="primary-button" id="valider-reponse">Valider</button></div>';
+        }
         }else{
         contenu+='<h3>'+escapeHtml(promptQuestion(q))+'</h3><textarea id="reponse-revision" rows="5" placeholder="Écris ta réponse..."></textarea><button type="button" class="primary-button" id="valider-reponse">Valider</button>';
     }
