@@ -570,6 +570,40 @@ function afficherQuestionSession(){
         };
         el.querySelectorAll(".revision-link-left").forEach(b=>b.onclick=()=>choose(b,"left"));el.querySelectorAll(".revision-link-right").forEach(b=>b.onclick=()=>choose(b,"right"));
         requestAnimationFrame(redraw);const resize=()=>requestAnimationFrame(redraw);window.addEventListener("resize",resize);session.relierCleanup=()=>window.removeEventListener("resize",resize);
+    }else if(mode==="phrase_reconstituer"){
+        const resultat=document.getElementById("revision-phrase-result");
+        const mots=[...el.querySelectorAll(".revision-phrase-word")];
+        const ordre=[];
+        const reset=document.getElementById("reinitialiser-phrase");
+        const reinitialiser=()=>{
+            ordre.length=0;
+            mots.forEach(button=>{button.disabled=false;button.classList.remove("selected");});
+            if(resultat)resultat.textContent="Clique sur les mots dans le bon ordre.";
+        };
+        mots.forEach(button=>button.addEventListener("click",()=>{
+            if(button.disabled)return;
+            ordre.push(button.textContent.trim());
+            button.disabled=true;
+            button.classList.add("selected");
+            if(resultat)resultat.textContent=ordre.join(" ");
+        }));
+        reset?.addEventListener("click",reinitialiser);
+        document.getElementById("valider-phrase")?.addEventListener("click",()=>{
+            const feedback=document.getElementById("feedback-revision");
+            const correct=normaliserTexte(ordre.join(" "))===session.phraseReponse;
+            if(correct){
+                feedback.textContent="Bonne réponse. Continue comme ça.";
+                feedback.className="revision-feedback success";
+                marquerQuestionReussie();
+                const bouton=document.getElementById("valider-phrase");
+                bouton.textContent="Question suivante";
+                bouton.onclick=()=>{session.index++;afficherQuestionSession();};
+            }else{
+                feedback.textContent=ordre.length?"La phrase n'est pas dans le bon ordre. Recommence.":"Sélectionne les mots dans le bon ordre.";
+                feedback.className="revision-feedback error";
+                reinitialiser();
+            }
+        });
     }else if(mode==="mots_croises"){
         const bouton=document.getElementById("verifier-mots-croises"),inputs=[...el.querySelectorAll(".revision-crossword-cell input")];
         const entreePour=(input,direction)=>{const r=Number(input.dataset.crossRow),c=Number(input.dataset.crossCol);return session.motsCroises.entries.find(entry=>entry.dir===direction&&Array.from({length:entry.solution.length},(_,i)=>[entry.row+(entry.dir==="down"?i:0),entry.col+(entry.dir==="across"?i:0)]).some(([rr,cc])=>rr===r&&cc===c));};
@@ -617,23 +651,6 @@ function afficherQuestionSession(){
                 }
             });
         });
-        if(mode==="phrase_reconstituer"){
-        const reset=document.getElementById("reinitialiser-phrase");
-        reset?.addEventListener("click",event=>{
-            event.preventDefault();
-            el.querySelectorAll(".revision-phrase-word").forEach(button=>{
-                button.disabled=false;
-                button.classList.remove("selected");
-            });
-            const resultat=document.getElementById("revision-phrase-result");
-            if(resultat)resultat.textContent="Clique sur les mots dans le bon ordre.";
-            const feedback=document.getElementById("feedback-revision");
-            if(feedback){
-                feedback.textContent="";
-                feedback.className="revision-feedback";
-            }
-        });
-    }
     el.querySelectorAll(".revision-crossword-clue").forEach(clue=>clue.onclick=()=>{
             const [number,direction]=clue.dataset.crossEntry.split("-");
             const entry=session.motsCroises.entries.find(x=>String(x.number)===number&&x.dir===direction);
