@@ -132,6 +132,15 @@ footer{padding:35px 20px;background:var(--primary);color:white}.footer-content{m
 .emoji-svg{display:inline-block;width:1em;height:1em;object-fit:contain;vertical-align:-0.15em;}
 
 
+/* Révision — questions repliées */
+.revision-question-summary{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:17px 20px;background:var(--surface-soft);border:1px solid var(--border);border-radius:14px}
+.revision-question-summary strong{display:block;color:var(--primary);font-size:17px}
+.revision-summary-actions{display:flex;gap:9px;flex-wrap:wrap}
+.revision-summary-actions .secondary-button,.revision-summary-actions .danger-button{padding:8px 12px;font-size:13px;margin:0}
+.revision-type-help{margin-top:12px;color:var(--muted);font-size:14px}
+.revision-finish-edit{align-self:flex-start;margin-top:6px}
+@media (max-width:600px){.revision-question-summary{align-items:flex-start;flex-direction:column}.revision-summary-actions{width:100%}.revision-summary-actions button{flex:1}}
+
 /* Révision */
 .revision-intro{max-width:760px;margin:-8px 0 20px;color:var(--muted)}
 .revision-fiches-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:25px}
