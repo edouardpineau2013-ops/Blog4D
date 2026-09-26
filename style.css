@@ -1187,3 +1187,15 @@ footer{padding:35px 20px;background:var(--primary);color:white}.footer-content{m
     border:2px solid var(--primary,#100b3a);
     box-sizing:border-box;
 }
+
+.revision-phrase-actions{
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px;
+    margin-top:12px;
+}
+.revision-phrase-actions .primary-button,
+.revision-phrase-actions .secondary-button{
+    margin-top:0;
+    border:2px solid var(--primary,#100b3a);
+}
