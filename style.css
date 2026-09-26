@@ -940,7 +940,8 @@ footer{padding:35px 20px;background:var(--primary);color:white}.footer-content{m
 .revision-crossword-wrap{
     max-width:100%;
     overflow:auto;
-    padding:8px 0 14px;
+    padding:0 0 14px;
+    margin-top:-8px;
 }
 .revision-crossword{
     display:inline-flex;
