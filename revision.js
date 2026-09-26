@@ -162,7 +162,7 @@ function afficherConfigurationRevision(fiche){
         '<p class="revision-intro">Choisis le nombre de questions et les modes de révision.</p>'+
         '<div class="revision-config-grid">'+
         '<div class="revision-config-block"><label for="nombre-a-reviser">Nombre de questions</label><input id="nombre-a-reviser" type="number" min="1" max="'+questions.length+'" value="'+Math.min(questions.length,10)+'"><small>Maximum : '+questions.length+'</small></div>'+
-        '<div class="revision-config-block"><span class="revision-config-label">Modes de révision</span><div class="revision-mode-list">'+
+        '<div class="revision-config-block"><span class="revision-config-label">Modes de révision</span><div class="revision-mode-actions"><button type="button" class="secondary-button" id="selectionner-tous-modes">Tout sélectionner</button><button type="button" class="secondary-button" id="deselectionner-tous-modes">Tout désélectionner</button></div><div class="revision-mode-list">'+
         Object.entries(MODES_REVISION).map(([key,mode])=>{
             const compatible=mode.types.some(type=>typesDisponibles.has(type));
             return '<label class="revision-mode-option'+(compatible?'':' is-disabled')+'"><input type="checkbox" name="revision-mode" value="'+key+'" '+(compatible?'checked':'disabled')+'><span>'+escapeHtml(mode.label)+'</span></label>';
@@ -173,6 +173,8 @@ function afficherConfigurationRevision(fiche){
     cacherToutesLesVues();
     config.hidden=false;
     document.getElementById("fermer-config").onclick=retourFiches;
+    document.getElementById("selectionner-tous-modes").onclick=()=>document.querySelectorAll('input[name="revision-mode"]:not(:disabled)').forEach(input=>input.checked=true);
+    document.getElementById("deselectionner-tous-modes").onclick=()=>document.querySelectorAll('input[name="revision-mode"]:not(:disabled)').forEach(input=>input.checked=false);
     document.getElementById("lancer-revision").onclick=lancerRevision;
     config.scrollIntoView({behavior:"smooth",block:"start"});
 }
@@ -230,7 +232,7 @@ function lancerRevision(){
 
     const questions=melanger(questionsEligibles).slice(0,nombre);
     session={
-        questions,modes,index:0,score:0,
+        questions,modes,index:0,score:0,questionsReussies:new Set(),
         modesParQuestion:questions.map(q=>{
             const compatibles=modes.filter(mode=>modeUtilisablePourQuestion(q,mode));
             const disponibles=compatibles.length?compatibles:Object.keys(MODES_REVISION).filter(mode=>modeUtilisablePourQuestion(q,mode));
@@ -330,7 +332,17 @@ function construireMotsCroises(questions,size=13){
     const starts=new Map();let number=1;
     entries.sort((a,b)=>a.row-b.row||a.col-b.col||a.dir.localeCompare(b.dir));
     for(const entry of entries){const key=entry.row+"-"+entry.col;if(!starts.has(key))starts.set(key,number++);entry.number=starts.get(key);}
-    return {size,grid,entries};
+
+    const cellules=[];
+    grid.forEach((row,r)=>row.forEach((cell,col)=>{if(cell)cellules.push([r,col]);}));
+    if(!cellules.length)return {size,grid,entries};
+    const minR=Math.max(0,Math.min(...cellules.map(x=>x[0]))-1);
+    const maxR=Math.min(size-1,Math.max(...cellules.map(x=>x[0]))+1);
+    const minC=Math.max(0,Math.min(...cellules.map(x=>x[1]))-1);
+    const maxC=Math.min(size-1,Math.max(...cellules.map(x=>x[1]))+1);
+    const compact=grid.slice(minR,maxR+1).map(row=>row.slice(minC,maxC+1));
+    entries.forEach(entry=>{entry.row-=minR;entry.col-=minC;});
+    return {size:compact.length,grid:compact,entries};
 }
 
 function rendreMotsCroises(croise){
@@ -369,6 +381,15 @@ function construireGrilleMotsMeles(mot,taille=12){
     const lettres="abcdefghijklmnopqrstuvwxyz";
     for(let r=0;r<n;r++)for(let col=0;col<n;col++)if(!grille[r][col])grille[r][col]=lettres[Math.floor(Math.random()*lettres.length)];
     return {size:n,grille,mot:motNet,placement};
+}
+
+function marquerQuestionReussie(){
+    if(!session||session.index<0)return false;
+    session.questionsReussies=session.questionsReussies||new Set();
+    if(session.questionsReussies.has(session.index))return false;
+    session.questionsReussies.add(session.index);
+    session.score=Math.min(session.questions.length,session.score+1);
+    return true;
 }
 
 function afficherQuestionSession(){
@@ -431,7 +452,7 @@ function afficherQuestionSession(){
 
     if(mode==="flashcards"){
         const reveal=document.getElementById("reveler-reponse");
-        reveal.onclick=()=>{document.getElementById("reponse-cachee").hidden=false;reveal.textContent="Je connaissais la réponse";reveal.onclick=()=>{session.score++;session.index++;afficherQuestionSession();};};
+        reveal.onclick=()=>{document.getElementById("reponse-cachee").hidden=false;reveal.textContent="Je connaissais la réponse";reveal.onclick=()=>{marquerQuestionReussie();session.index++;afficherQuestionSession();};};
     }else if(mode==="qcm"||mode==="paires"||mode==="associer"){
         el.querySelectorAll(".revision-choice").forEach(button=>button.onclick=()=>enregistrerChoix(button.dataset.answer,bonne));
     }else if(mode==="relier"){
@@ -445,7 +466,7 @@ function afficherQuestionSession(){
             if(left.dataset.id!==button.dataset.id){const feedback=document.getElementById("feedback-revision");feedback.textContent="Ce n’est pas la bonne paire. Essaie encore.";feedback.className="revision-feedback error";left.classList.remove("selected");selected.button=null;return;}
             connections.add(button.dataset.id);left.disabled=true;button.disabled=true;left.classList.remove("selected");selected.button=null;redraw();
             const feedback=document.getElementById("feedback-revision");feedback.textContent="Bonne liaison.";feedback.className="revision-feedback success";
-            if(connections.size===session.relier.length){session.score++;const next=document.createElement("button");next.type="button";next.className="primary-button";next.textContent="Question suivante";next.onclick=()=>{session.index++;afficherQuestionSession();};feedback.after(next);}
+            if(connections.size===session.relier.length){marquerQuestionReussie();const next=document.createElement("button");next.type="button";next.className="primary-button";next.textContent="Question suivante";next.onclick=()=>{session.index++;afficherQuestionSession();};feedback.after(next);}
         };
         el.querySelectorAll(".revision-link-left").forEach(b=>b.onclick=()=>choose(b,"left"));el.querySelectorAll(".revision-link-right").forEach(b=>b.onclick=()=>choose(b,"right"));
         requestAnimationFrame(redraw);const resize=()=>requestAnimationFrame(redraw);window.addEventListener("resize",resize);session.relierCleanup=()=>window.removeEventListener("resize",resize);
@@ -460,7 +481,7 @@ function afficherQuestionSession(){
         bouton?.addEventListener("click",()=>{
             let total=0,correct=0;session.motsCroises.grid.forEach((row,r)=>row.forEach((cell,c)=>{if(!cell)return;const input=el.querySelector('[data-cross-row="'+r+'"][data-cross-col="'+c+'"]');if(!input)return;total++;const value=normaliserTexte(input.value).replace(/\s/g,"");input.classList.remove("correct","incorrect");if(value===cell.letter){correct++;input.classList.add("correct");}else if(value)input.classList.add("incorrect");}));
             const feedback=document.getElementById("feedback-revision");
-            if(total&&correct===total){session.score++;feedback.textContent="Grille complète et correcte.";feedback.className="revision-feedback success";bouton.textContent="Question suivante";bouton.onclick=()=>{session.index++;afficherQuestionSession();};}
+            if(total&&correct===total){marquerQuestionReussie();feedback.textContent="Grille complète et correcte.";feedback.className="revision-feedback success";bouton.textContent="Question suivante";bouton.onclick=()=>{session.index++;afficherQuestionSession();};}
             else{feedback.textContent="Il reste des cases à corriger.";feedback.className="revision-feedback error";}
         });
     }else if(mode==="glisser_deposer"){
@@ -476,7 +497,7 @@ function afficherQuestionSession(){
         let premier=null,selection=[];
         const effacer=()=>{selection.forEach(cell=>cell.classList.remove("selected"));selection=[];};
         const surligner=()=>{const p=session.motsMeles.placement;if(!p)return;const [r0,c0,r1,c1]=p,dr=Math.sign(r1-r0),dc=Math.sign(c1-c0);for(let i=0;i<session.motsMeles.mot.length;i++)grille.querySelector('[data-word-row="'+(r0+dr*i)+'"][data-word-col="'+(c0+dc*i)+'"]')?.classList.add("found");};
-        const valider=mot=>{const value=normaliserTexte(mot).replace(/\s/g,""),reverse=[...value].reverse().join(""),correct=value===session.motsMeles.mot||reverse===session.motsMeles.mot,feedback=document.getElementById("feedback-revision");if(correct){session.score++;champ.value=session.motsMeles.mot.toUpperCase();champ.disabled=true;bouton.textContent="Question suivante";bouton.onclick=()=>{session.index++;afficherQuestionSession();};feedback.textContent="Mot trouvé !";feedback.className="revision-feedback success";surligner();grille.querySelectorAll(".revision-word-cell").forEach(cell=>cell.disabled=true);}else{feedback.textContent="Ce n’est pas le bon mot. Cherche encore.";feedback.className="revision-feedback error";}};
+        const valider=mot=>{const value=normaliserTexte(mot).replace(/\s/g,""),reverse=[...value].reverse().join(""),correct=value===session.motsMeles.mot||reverse===session.motsMeles.mot,feedback=document.getElementById("feedback-revision");if(correct){marquerQuestionReussie();champ.value=session.motsMeles.mot.toUpperCase();champ.disabled=true;bouton.textContent="Question suivante";bouton.onclick=()=>{session.index++;afficherQuestionSession();};feedback.textContent="Mot trouvé !";feedback.className="revision-feedback success";surligner();grille.querySelectorAll(".revision-word-cell").forEach(cell=>cell.disabled=true);}else{feedback.textContent="Ce n’est pas le bon mot. Cherche encore.";feedback.className="revision-feedback error";}};
         bouton.onclick=()=>valider(champ.value);
         const cellule=(r,c)=>grille.querySelector('[data-word-row="'+r+'"][data-word-col="'+c+'"]');
         grille.querySelectorAll(".revision-word-cell").forEach(cell=>cell.onclick=()=>{
@@ -500,7 +521,7 @@ function enregistrerChoix(reponse,attendue){
     const correct=normaliserTexte(reponse)===normaliserTexte(attendue);
     feedback.textContent=correct?"Bonne réponse. Continue comme ça.":"Réponse attendue : "+attendue;
     feedback.className="revision-feedback "+(correct?"success":"error");
-    if(correct)session.score++;
+    if(correct)marquerQuestionReussie();
     document.querySelectorAll(".revision-choice,#vf-vrai,#vf-faux").forEach(b=>b.disabled=true);
     const suivant=document.createElement("button");
     suivant.type="button";suivant.className="primary-button";suivant.textContent="Question suivante";
@@ -515,7 +536,7 @@ function validerReponse(){
     const resultat=evaluerReponse(attendu,champ.value);
     feedback.textContent=resultat.correct?"Bonne réponse. Continue comme ça.":"Réponse attendue : "+attendu;
     feedback.className="revision-feedback "+(resultat.correct?"success":"error");
-    if(resultat.correct)session.score++;
+    if(resultat.correct)marquerQuestionReussie();
     champ.disabled=true;bouton.textContent="Question suivante";bouton.onclick=()=>{session.index++;afficherQuestionSession();};
 }
 function afficherResultatRevision(){
@@ -537,7 +558,7 @@ function afficherResultatRevision(){
         const modes=session.modes;
         const questionsEligibles=ficheEtude.questions.filter(q=>modes.some(mode=>modeUtilisablePourQuestion(q,mode)));
         const questions=melanger(questionsEligibles).slice(0,totalQuestions);
-        session={questions,modes,index:0,score:0,modesParQuestion:questions.map(q=>{
+        session={questions,modes,index:0,score:0,questionsReussies:new Set(),modesParQuestion:questions.map(q=>{
             const compatibles=modes.filter(mode=>modeUtilisablePourQuestion(q,mode));
             const disponibles=compatibles.length?compatibles:Object.keys(MODES_REVISION).filter(mode=>modeUtilisablePourQuestion(q,mode));
             return disponibles.length?disponibles[Math.floor(Math.random()*disponibles.length)]:"questions";
