@@ -458,7 +458,7 @@ function afficherQuestionSession(){
     }else if(mode==="mots_croises"){
         const croise=construireMotsCroises(ficheEtude.questions,13);session.motsCroises=croise;
         if(!croise.entries.length)contenu+='<h3>Mots croisés</h3><p>Aucune grille croisée compatible n’a pu être générée avec cette fiche.</p>';
-        else contenu+='<h3>Mots croisés</h3><p>Complète les cases avec les indices horizontaux et verticaux.</p>'+rendreMotsCroises(croise)+'<button type="button" class="primary-button" id="verifier-mots-croises">Vérifier la grille</button>';
+        else contenu+='<h3>Mots croisés</h3><p style="margin-bottom: 30px;">Complète les cases avec les indices horizontaux et verticaux.</p>'+rendreMotsCroises(croise)+'<button type="button" class="primary-button" id="verifier-mots-croises">Vérifier la grille</button>';
     }else if(mode==="mots_meles"){
         let jeu,signature,essais=0;
         do{jeu=construireGrilleMotsMeles(motPourMotsMeles(q),12);signature=jeu.grille.map(row=>row.join("")).join("");essais++;}while(signature===session.dernierMotsMeles&&essais<10);
