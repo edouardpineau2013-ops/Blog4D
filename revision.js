@@ -33,6 +33,7 @@ const MODES_REVISION = {
     phrase_reconstituer:{label:"Phrase à reconstituer",types:["question","definition","vocabulaire","regle","methode","processus","exemple","liste"]},
     timeline:{label:"Frise chronologique",types:["date"]},
     intrus:{label:"Trouver l'intrus",types:Object.keys(TYPES_REVISION)},
+    exercice:{label:"Exercice classique",types:Object.keys(TYPES_REVISION)},
     oral:{label:"Réponse orale",types:Object.keys(TYPES_REVISION)}
 };
 
