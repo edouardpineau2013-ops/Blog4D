@@ -92,39 +92,45 @@ const TYPES_REVISION = {
     }
 };
 
-const STORAGE_KEY = "blog4d_fiches_revision";
-let questionsRevision = [];
-
-function chargerFiches() {
-    try {
-        return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
-    } catch {
-        return [];
-    }
+async function chargerFiches() {
+    verifierSupabase();
+    const { data, error } = await supabaseClient
+        .from("fiches_revision")
+        .select("id, titre, matiere, questions, auteur_id, auteur_identifiant, created_at")
+        .order("created_at", { ascending: false });
+    if (error) throw error;
+    return data || [];
 }
 
-function sauvegarderFiches(fiches) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(fiches));
-}
-
-function afficherFiches() {
+function afficherFiches(fiches) {
     const liste = document.getElementById("liste-fiches");
-    const fiches = chargerFiches();
 
     if (!fiches.length) {
-        liste.innerHTML = '<div class="empty-state revision-empty"><h3>Aucune fiche pour le moment</h3><p>Crée ta première fiche de révision avec le bouton ci-dessus.</p></div>';
+        liste.innerHTML = '<div class="empty-state revision-empty"><h3>Aucune fiche pour le moment</h3><p>Crée la première fiche de révision.</p></div>';
         return;
     }
 
     liste.innerHTML = fiches.map(fiche => {
-        const date = new Date(fiche.createdAt).toLocaleDateString("fr-FR");
+        const date = new Date(fiche.created_at).toLocaleDateString("fr-FR");
+        const questions = Array.isArray(fiche.questions) ? fiche.questions : [];
         return `<article class="revision-fiche-card">
             <span class="article-tag">${escapeHtml(fiche.matiere)}</span>
             <h3>${escapeHtml(fiche.titre)}</h3>
-            <p>${fiche.questions.length} question${fiche.questions.length > 1 ? "s" : ""}</p>
-            <small>Créée le ${date}</small>
+            <p>${questions.length} question${questions.length > 1 ? "s" : ""}</p>
+            <small>Créée par <strong>${escapeHtml(fiche.auteur_identifiant || "Utilisateur")}</strong> le ${date}</small>
         </article>`;
     }).join("");
+}
+
+async function actualiserFiches() {
+    const liste = document.getElementById("liste-fiches");
+    try {
+        liste.innerHTML = '<div class="empty-state revision-empty"><h3>Chargement des fiches...</h3></div>';
+        afficherFiches(await chargerFiches());
+    } catch (error) {
+        console.error("Erreur chargement fiches :", error);
+        liste.innerHTML = '<div class="empty-state revision-empty"><h3>Impossible de charger les fiches</h3><p>Vérifie la configuration Supabase et réessaie.</p></div>';
+    }
 }
 
 function escapeHtml(value) {
@@ -136,8 +142,9 @@ function escapeHtml(value) {
 function ajouterQuestion() {
     questionsRevision.push({
         id: crypto.randomUUID(),
-        type: "definition",
-        data: {}
+        type: "",
+        data: {},
+        editing: true
     });
     afficherQuestions();
 }
@@ -148,19 +155,34 @@ function afficherQuestions() {
         `${questionsRevision.length} question${questionsRevision.length > 1 ? "s" : ""}`;
 
     container.innerHTML = questionsRevision.map((question, index) => {
-        const type = TYPES_REVISION[question.type];
+        const type = question.type ? TYPES_REVISION[question.type] : null;
+
+        if (!question.editing) {
+            return `<article class="revision-question-summary" data-question-id="${question.id}">
+                <div>
+                    <span class="small-label">QUESTION ${index + 1}</span>
+                    <strong>${escapeHtml(type?.label || "Type non choisi")}</strong>
+                </div>
+                <div class="revision-summary-actions">
+                    <button type="button" class="secondary-button revision-edit" data-id="${question.id}">Éditer</button>
+                    <button type="button" class="danger-button revision-delete" data-id="${question.id}">Supprimer</button>
+                </div>
+            </article>`;
+        }
+
         return `<article class="revision-question-card" data-question-id="${question.id}">
             <div class="revision-question-top">
-                <div><span class="small-label">QUESTION ${index + 1}</span><h3>${type.label}</h3></div>
+                <div><span class="small-label">QUESTION ${index + 1}</span><h3>${escapeHtml(type?.label || "Nouvelle question")}</h3></div>
                 <button type="button" class="danger-button revision-delete" data-id="${question.id}">Supprimer</button>
             </div>
-            <label>Type de donnée</label>
-            <select class="revision-type-select">
+            <label for="${question.id}-type">Type de donnée</label>
+            <select id="${question.id}-type" class="revision-type-select">
+                <option value="">Choisir un type...</option>
                 ${Object.entries(TYPES_REVISION).map(([key, item]) =>
                     `<option value="${key}" ${key === question.type ? "selected" : ""}>${item.label}</option>`
                 ).join("")}
             </select>
-            <div class="revision-fields">
+            ${type ? `<div class="revision-fields">
                 ${type.fields.map(([name, label, placeholder, inputType]) => `
                     <label for="${question.id}-${name}">${label}</label>
                     ${inputType === "textarea"
@@ -168,7 +190,8 @@ function afficherQuestions() {
                         : `<input id="${question.id}-${name}" data-field="${name}" type="text" required value="${escapeHtml(question.data[name] || "")}" placeholder="${placeholder}">`
                     }
                 `).join("")}
-            </div>
+                <button type="button" class="secondary-button revision-finish-edit">Terminer</button>
+            </div>` : '<p class="revision-type-help">Choisis d’abord un type de donnée.</p>'}
         </article>`;
     }).join("");
 
@@ -178,6 +201,32 @@ function afficherQuestions() {
             const question = questionsRevision.find(item => item.id === card.dataset.questionId);
             question.type = event.target.value;
             question.data = {};
+            afficherQuestions();
+        });
+    });
+
+    container.querySelectorAll("[data-field]").forEach(field => {
+        field.addEventListener("input", event => {
+            const card = event.target.closest(".revision-question-card");
+            const question = questionsRevision.find(item => item.id === card.dataset.questionId);
+            question.data[event.target.dataset.field] = event.target.value;
+        });
+    });
+
+    container.querySelectorAll(".revision-finish-edit").forEach(button => {
+        button.addEventListener("click", () => {
+            const card = button.closest(".revision-question-card");
+            const question = questionsRevision.find(item => item.id === card.dataset.questionId);
+            if (!question.type) return;
+            question.editing = false;
+            afficherQuestions();
+        });
+    });
+
+    container.querySelectorAll(".revision-edit").forEach(button => {
+        button.addEventListener("click", () => {
+            const question = questionsRevision.find(item => item.id === button.dataset.id);
+            question.editing = true;
             afficherQuestions();
         });
     });
@@ -201,8 +250,8 @@ function lireQuestions() {
     return questionsRevision;
 }
 
-document.addEventListener("DOMContentLoaded", () => {
-    afficherFiches();
+document.addEventListener("DOMContentLoaded", async () => {
+    await actualiserFiches();
 
     const ouvrir = document.getElementById("ouvrir-createur");
     const editor = document.getElementById("revision-editor");
@@ -212,10 +261,17 @@ document.addEventListener("DOMContentLoaded", () => {
     const form = document.getElementById("fiche-form");
     const status = document.getElementById("revision-status");
 
-    ouvrir.addEventListener("click", () => {
+    ouvrir.addEventListener("click", async () => {
+        const user = await utilisateurConnecte();
+        if (!user) {
+            window.location.href = "connexion.html";
+            return;
+        }
         questionsRevision = [];
         form.reset();
         afficherQuestions();
+        status.textContent = "";
+        status.className = "revision-status";
         editor.hidden = false;
         accueil.hidden = true;
         editor.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -228,7 +284,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     ajouter.addEventListener("click", ajouterQuestion);
 
-    form.addEventListener("submit", event => {
+    form.addEventListener("submit", async event => {
         event.preventDefault();
         lireQuestions();
 
@@ -239,26 +295,44 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
+        if (questionsRevision.some(question => !question.type)) {
+            status.textContent = "Choisis un type de donnée pour chaque question.";
+            status.className = "revision-status error";
+            return;
+        }
+
+        const utilisateur = await utilisateurConnecte();
+        if (!utilisateur) {
+            window.location.href = "connexion.html";
+            return;
+        }
+
+        const profil = await obtenirProfil();
         const fiche = {
-            id: crypto.randomUUID(),
             titre: document.getElementById("fiche-titre").value.trim(),
             matiere: document.getElementById("fiche-matiere").value.trim(),
             questions: questionsRevision.map(question => ({
                 type: question.type,
                 data: { ...question.data }
             })),
-            createdAt: new Date().toISOString()
+            auteur_id: utilisateur.id,
+            auteur_identifiant: profil?.identifiant || "Utilisateur"
         };
 
-        const fiches = chargerFiches();
-        fiches.unshift(fiche);
-        sauvegarderFiches(fiches);
+        const { error } = await supabaseClient.from("fiches_revision").insert(fiche);
+        if (error) {
+            console.error("Erreur publication fiche :", error);
+            status.textContent = "Impossible de publier la fiche. Vérifie la configuration Supabase.";
+            status.className = "revision-status error";
+            return;
+        }
 
-        status.textContent = "Fiche créée !";
+        status.textContent = "Fiche publiée ! Elle est maintenant visible par tout le monde.";
         status.className = "revision-status success";
         editor.hidden = true;
         accueil.hidden = false;
-        afficherFiches();
+        questionsRevision = [];
+        await actualiserFiches();
         accueil.scrollIntoView({ behavior: "smooth", block: "start" });
     });
 });
