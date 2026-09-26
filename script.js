@@ -33,7 +33,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             if (!prochaine) {
                 nomVacances.textContent = "Toutes les vacances sont passées";
-                compteur.innerHTML = '<img src="img/celebration.svg" class="emoji-svg" alt="" aria-hidden="true"> Profitez bien !';
+                compteur.textContent = "Profitez bien !";
                 dateVacances.textContent = "";
                 return;
             }
