@@ -469,6 +469,7 @@ function afficherQuestionSession(){
         const pieces=melanger([...paires.map(x=>({id:x.id+"-g",pair:x.pair,cote:"gauche",texte:x.gauche})),...paires.map(x=>({id:x.id+"-d",pair:x.pair,cote:"droite",texte:x.droite}))]);
         session.puzzle={paires,trouvees:[]};
         contenu+='<h3>Puzzle</h3><p>Déplace les pièces pour assembler les 3 bonnes paires.</p><div class="revision-puzzle-pieces" id="revision-puzzle-pieces">'+pieces.map(piece=>'<button type="button" draggable="true" class="revision-puzzle-piece" data-piece-id="'+piece.id+'" data-pair="'+piece.pair+'" data-cote="'+piece.cote+'">'+escapeHtml(piece.texte||"—")+'</button>').join("")+'</div><div class="revision-puzzle-pairs" id="revision-puzzle-pairs"><div class="revision-puzzle-slot" id="revision-puzzle-slot"><span>Paires assemblées</span><div class="revision-puzzle-slot-content"></div></div></div>';
+        }
     }else if(mode==="lettres_melangees"){
         const solution=String(v[0]||"").trim();
         const melange=melangerLettres(solution);
