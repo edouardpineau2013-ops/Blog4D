@@ -13,21 +13,21 @@ document.addEventListener("DOMContentLoaded", async () => {
     };
 
     async function chargerEvenements() {
-        liste.innerHTML = '<div class="empty-state"><div class="empty-icon">⏳</div><h3>Chargement...</h3></div>';
+        liste.innerHTML = '<div class="empty-state"><div class="empty-icon"><img src="img/hourglass.svg" class="emoji-svg" alt="" aria-hidden="true"></div><h3>Chargement...</h3></div>';
         const {data, error} = await supabaseClient.from("evenements").select("id,titre,description,date_evenement,lieu,created_at,updated_at,auteur_id,auteur_identifiant").order("date_evenement", {ascending:true});
         if (error) {
             console.error(error);
-            liste.innerHTML = '<div class="empty-state"><div class="empty-icon">⚠️</div><h3>Impossible de charger les événements</h3><p>Vérifie la configuration Supabase.</p></div>';
+            liste.innerHTML = '<div class="empty-state"><div class="empty-icon"><img src="img/warning.svg" class="emoji-svg" alt="" aria-hidden="true"></div><h3>Impossible de charger les événements</h3><p>Vérifie la configuration Supabase.</p></div>';
             return;
         }
         if (!data.length) {
-            liste.innerHTML = '<div class="empty-state"><div class="empty-icon">📅</div><h3>Aucun événement pour le moment</h3><p>Le premier événement peut être ajouté par un membre connecté.</p></div>';
+            liste.innerHTML = '<div class="empty-state"><div class="empty-icon"><img src="img/calendar.svg" class="emoji-svg" alt="" aria-hidden="true"></div><h3>Aucun événement pour le moment</h3><p>Le premier événement peut être ajouté par un membre connecté.</p></div>';
             return;
         }
         const admin = await estAdmin();
         liste.innerHTML = data.map(e => `
             <article class="info-card evenement-card">
-                <div class="info-icon">📅</div>
+                <div class="info-icon"><img src="img/calendar.svg" class="emoji-svg" alt="" aria-hidden="true"></div>
                 <div class="article-top"><span class="article-tag">ÉVÉNEMENT</span><span class="article-date">${afficherDate(e.date_evenement)}</span></div>
                 <h3>${echapperHTML(e.titre)}</h3>
                 <p>${echapperHTML(e.description).replace(/\n/g,"<br>")}</p>
