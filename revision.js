@@ -34,7 +34,8 @@ const MODES_REVISION = {
     timeline:{label:"Frise chronologique",types:["date"]},
     intrus:{label:"Trouver l'intrus",types:Object.keys(TYPES_REVISION)},
     exercice:{label:"Exercice classique",types:Object.keys(TYPES_REVISION)},
-    oral:{label:"Réponse orale",types:Object.keys(TYPES_REVISION)}
+    mots_croises:{label:"Mots croisés",types:["definition","question","vocabulaire","personne","lieu","formule","regle","methode","processus","cause","exemple"]},
+    mots_meles:{label:"Mots mêlés",types:["definition","question","vocabulaire","personne","lieu","exemple"]}
 };
 
 let questionsRevision = [];
@@ -251,13 +252,20 @@ function afficherQuestionSession(){
         contenu+='<h3>Reconstitue la phrase ou la réponse.</h3><p class="revision-letter-game">'+escapeHtml(melange.join(" / "))+'</p><input id="reponse-revision" type="text" placeholder="Phrase reconstituée"><button type="button" class="primary-button" id="valider-reponse">Valider</button>';
     }else if(mode==="timeline"){
         contenu+='<h3>'+escapeHtml(v[1])+'</h3><p>Quelle est la date ou période ?</p><input id="reponse-revision" type="text" placeholder="Date ou période"><button type="button" class="primary-button" id="valider-reponse">Valider</button>';
+    }else if(mode==="mots_croises"){
+        const mot=String(v[0]||"").trim();
+        contenu+='<h3>Mots croisés</h3><p>Retrouve le terme correspondant à cette définition.</p><p class="revision-statement">'+escapeHtml(v[1]||promptQuestion(q))+'</p><input id="reponse-revision" type="text" placeholder="Écris le terme"><button type="button" class="primary-button" id="valider-reponse">Valider</button>';
+    }else if(mode==="mots_meles"){
+        const mot=String(v[0]||"").trim();
+        const lettres=[...normaliserTexte(mot).replace(/\s/g,"")];
+        const bruit=melanger("abcdefghijklmnopqrstuvwxyz".split("")).slice(0,Math.min(10,Math.max(4,lettres.length)));
+        const grille=melanger([...lettres,...bruit]).join(" ");
+        contenu+='<h3>Mots mêlés</h3><p>Retrouve le mot caché dans les lettres.</p><p class="revision-letter-game">'+escapeHtml(grille)+'</p><input id="reponse-revision" type="text" placeholder="Mot trouvé"><button type="button" class="primary-button" id="valider-reponse">Valider</button>';
     }else if(mode==="intrus"){
         const choix=melanger([v[0],...ficheEtude.questions.filter(x=>x!==q).slice(0,3).map(x=>valeurs(x)[0]).filter(Boolean)]);
         const intrus=choix[choix.length-1];
         session.intrus=intrus;
         contenu+='<h3>Trouve l’intrus.</h3><p>Une seule proposition n’appartient pas au même ensemble.</p><div class="revision-mode-choices">'+choix.map(x=>'<button type="button" class="secondary-button revision-choice" data-answer="'+escapeHtml(x)+'">'+escapeHtml(x)+'</button>').join("")+'</div>';
-    }else if(mode==="oral"){
-        contenu+='<h3>'+escapeHtml(promptQuestion(q))+'</h3><p>Réponds oralement, puis affiche la réponse attendue pour vérifier.</p><button type="button" class="primary-button" id="oral-reponse">Afficher la réponse</button><div id="reponse-cachee" class="revision-hidden-answer" hidden>'+escapeHtml(bonne).replace(/\n/g,"<br>")+'</div>';
     }else{
         contenu+='<h3>'+escapeHtml(promptQuestion(q))+'</h3><textarea id="reponse-revision" rows="5" placeholder="Écris ta réponse..."></textarea><button type="button" class="primary-button" id="valider-reponse">Valider</button>';
     }
@@ -279,8 +287,6 @@ function afficherQuestionSession(){
         document.getElementById("vf-faux").onclick=()=>enregistrerChoix("faux",session.vraiFaux.correct?"vrai":"faux");
     }else if(mode==="intrus"){
         el.querySelectorAll(".revision-choice").forEach(button=>button.onclick=()=>enregistrerChoix(button.dataset.answer,session.intrus));
-    }else if(mode==="oral"){
-        document.getElementById("oral-reponse").onclick=()=>{document.getElementById("reponse-cachee").hidden=false;document.getElementById("oral-reponse").textContent="Je connaissais la réponse";document.getElementById("oral-reponse").onclick=()=>{session.score++;session.index++;afficherQuestionSession();};};
     }else{
         const bouton=document.getElementById("valider-reponse");
         if(bouton){bouton.onclick=validerReponse;const champ=document.getElementById("reponse-revision");if(champ)champ.focus();}
