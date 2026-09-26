@@ -119,7 +119,10 @@ async function actualiserFiches(){
 
 function modesDisponibles(questions){
     const types=new Set(questions.map(q=>q.type));
-    return Object.entries(MODES_REVISION).filter(([_,mode])=>mode.types.some(type=>types.has(type)));
+    return Object.entries(MODES_REVISION).filter(([nom,mode])=>{
+        if(nom==="puzzle"&&questions.length<3)return false;
+        return mode.types.some(type=>types.has(type));
+    });
 }
 
 function promptQuestion(q){
