@@ -82,7 +82,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (!prochaine) {
             nomVacances.textContent = "Toutes les vacances sont passées";
-            compteur.textContent = "🎉 Profitez bien !";
+            compteur.innerHTML = '<img src="img/celebration.svg" class="emoji-svg" alt="" aria-hidden="true"> Profitez bien !';
             dateVacances.textContent = "";
             return;
         }
