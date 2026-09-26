@@ -118,6 +118,9 @@ function afficherFiches(fiches) {
             <h3>${escapeHtml(fiche.titre)}</h3>
             <p>${questions.length} question${questions.length > 1 ? "s" : ""}</p>
             <small>Créée par <strong>${escapeHtml(fiche.auteur_identifiant || "Utilisateur")}</strong> le ${date}</small>
+            <button type="button" class="primary-button revision-study-button" data-fiche-id="${fiche.id}">
+                Réviser
+            </button>
         </article>`;
     }).join("");
 
