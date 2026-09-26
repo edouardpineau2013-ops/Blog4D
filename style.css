@@ -126,3 +126,7 @@ footer{padding:35px 20px;background:var(--primary);color:white}.footer-content{m
 
 
 .contact-content{flex:1;min-width:0}.contact-form{margin-top:20px}.contact-form button{align-self:flex-start}.contact-status{min-height:24px;margin-top:4px;font-weight:700}.contact-status.success{color:#2f7d32}.contact-status.error{color:#9f2638}.contact-honeypot{position:absolute!important;left:-10000px!important;width:1px!important;height:1px!important;opacity:0!important;pointer-events:none!important}@media(max-width:600px){.contact-card{align-items:flex-start;flex-direction:column}.contact-form button{width:100%}}
+
+
+/* Icônes SVG utilisées à la place des émojis */
+.emoji-svg{display:inline-block;width:1em;height:1em;object-fit:contain;vertical-align:-0.15em;}
