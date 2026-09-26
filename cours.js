@@ -55,15 +55,15 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
 
     async function chargerCours() {
-        liste.innerHTML = '<div class="empty-state"><div class="empty-icon">⏳</div><h3>Chargement...</h3></div>';
+        liste.innerHTML = '<div class="empty-state"><div class="empty-icon"><img src="img/hourglass.svg" class="emoji-svg" alt="" aria-hidden="true"></div><h3>Chargement...</h3></div>';
         const {data, error} = await supabaseClient.from("cours").select("id,titre,matiere,contenu,image_url,created_at,updated_at,auteur_id,auteur_identifiant").order("created_at", {ascending:false});
         if (error) {
             console.error(error);
-            liste.innerHTML = '<div class="empty-state"><div class="empty-icon">⚠️</div><h3>Impossible de charger les cours</h3><p>Vérifie la configuration Supabase.</p></div>';
+            liste.innerHTML = '<div class="empty-state"><div class="empty-icon"><img src="img/warning.svg" class="emoji-svg" alt="" aria-hidden="true"></div><h3>Impossible de charger les cours</h3><p>Vérifie la configuration Supabase.</p></div>';
             return;
         }
         if (!data.length) {
-            liste.innerHTML = '<div class="empty-state"><div class="empty-icon">📚</div><h3>Aucun cours pour le moment</h3><p>Le premier cours peut être ajouté par un membre connecté.</p></div>';
+            liste.innerHTML = '<div class="empty-state"><div class="empty-icon"><img src="img/books.svg" class="emoji-svg" alt="" aria-hidden="true"></div><h3>Aucun cours pour le moment</h3><p>Le premier cours peut être ajouté par un membre connecté.</p></div>';
             return;
         }
 
