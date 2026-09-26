@@ -46,7 +46,7 @@ section { scroll-margin-top:90px; }
 .hero-text p { max-width:650px;color:var(--muted);font-size:18px; }
 .hero-buttons { display:flex;flex-wrap:wrap;gap:12px;margin-top:30px; }
 .primary-button,.secondary-button { display:inline-block;padding:12px 18px;border-radius:11px;text-decoration:none;font-weight:800;transition:transform .2s ease,box-shadow .2s ease;border:0;cursor:pointer;font:inherit; }
-.primary-button { background:var(--primary);color:white; }
+.primary-button { background:var(--primary);color:white;margin-top:15px }
 .secondary-button { background:var(--surface-soft);color:var(--primary); }
 .primary-button:hover,.secondary-button:hover { transform:translateY(-2px); }
 .primary-button:hover { box-shadow:0 8px 20px rgba(16,11,58,.20); }
