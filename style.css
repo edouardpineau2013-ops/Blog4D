@@ -1300,3 +1300,22 @@ footer{padding:35px 20px;background:var(--primary);color:white}.footer-content{m
         min-height:125px;
     }
 }
+
+.revision-puzzle-pair{
+    display:flex;
+    align-items:stretch;
+    justify-content:center;
+    gap:8px;
+    width:100%;
+    margin:8px 0;
+}
+.revision-puzzle-pair .revision-puzzle-piece{
+    min-width:0;
+    min-height:48px;
+    padding:9px 12px;
+    flex:1;
+}
+.revision-puzzle-slot-content{
+    flex-direction:column;
+    width:100%;
+}
