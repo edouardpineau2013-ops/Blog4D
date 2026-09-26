@@ -15,10 +15,27 @@ const TYPES_REVISION = {
 };
 
 const MODES_REVISION = {
-    questions:{label:"Questions / réponses",types:["question","definition","vocabulaire","personne","lieu","formule","regle","methode","processus","cause","exemple","liste"]},
-    flashcards:{label:"Cartes mémoire",types:["question","definition","vocabulaire","personne","lieu","formule","regle","methode","processus","cause","exemple","liste"]},
+    flashcards:{label:"Flashcard",types:Object.keys(TYPES_REVISION)},
+    questions:{label:"Question / réponse",types:Object.keys(TYPES_REVISION)},
+    qcm:{label:"QCM",types:Object.keys(TYPES_REVISION)},
+    vrai_faux:{label:"Vrai / Faux",types:Object.keys(TYPES_REVISION)},
+    reponse_ecrite:{label:"Réponse écrite",types:Object.keys(TYPES_REVISION)},
+    texte_trous:{label:"Texte à trous",types:Object.keys(TYPES_REVISION)},
+    definition_terme:{label:"Définition → terme",types:["definition","vocabulaire"]},
+    terme_definition:{label:"Terme → définition",types:Object.keys(TYPES_REVISION)},
+    paires:{label:"Paires",types:Object.keys(TYPES_REVISION)},
+    relier:{label:"Relier",types:Object.keys(TYPES_REVISION)},
+    associer:{label:"Associer",types:Object.keys(TYPES_REVISION)},
+    glisser_deposer:{label:"Glisser-déposer",types:Object.keys(TYPES_REVISION)},
+    anagramme:{label:"Anagramme",types:["definition","vocabulaire","personne","lieu"]},
+    lettres_melangees:{label:"Lettres mélangées",types:["definition","vocabulaire","personne","lieu"]},
+    mot_mystere:{label:"Mot mystère",types:["definition","vocabulaire","personne","lieu"]},
+    phrase_reconstituer:{label:"Phrase à reconstituer",types:["question","definition","vocabulaire","regle","methode","processus","exemple","liste"]},
     timeline:{label:"Frise chronologique",types:["date"]},
-    oral:{label:"Réponse libre",types:["question","definition","vocabulaire","personne","lieu","formule","regle","methode","processus","cause","exemple","liste"]}
+    intrus:{label:"Trouver l'intrus",types:Object.keys(TYPES_REVISION)},
+    exercice:{label:"Exercice classique",types:Object.keys(TYPES_REVISION)},
+    mots_croises:{label:"Mots croisés",types:["definition","question","vocabulaire","personne","lieu","formule","regle","methode","processus","cause","exemple"]},
+    mots_meles:{label:"Mots mêlés",types:["definition","question","vocabulaire","personne","lieu","exemple"]}
 };
 
 let questionsRevision = [];
@@ -194,55 +211,125 @@ function lancerRevision(){
     afficherQuestionSession();
 }
 
+function construireChoix(q){
+    const bonne=valeurs(q)[1]||"";
+    const autres=ficheEtude.questions.filter(x=>x!==q).map(x=>valeurs(x)[1]).filter(Boolean);
+    return melanger([bonne,...melanger([...new Set(autres)]).slice(0,3)]);
+}
+
+function melangerLettres(texte){
+    const lettres=[...normaliserTexte(texte).replace(/\\s/g,"")];
+    if(lettres.length<2)return texte;
+    let resultat=lettres.join("");
+    for(let i=0;i<10&&normaliserTexte(resultat)===normaliserTexte(texte);i++)resultat=melanger(lettres).join("");
+    return resultat;
+}
+
+function motMystere(texte){
+    const mot=String(texte||"").trim().split(/\\s+/)[0];
+    if(mot.length<3)return {masque:mot,solution:mot};
+    const lettres=[...mot];
+    const visibles=Math.max(1,Math.ceil(lettres.length*.35));
+    const indices=new Set(melanger([...Array(lettres.length).keys()]).slice(0,visibles));
+    return {masque:lettres.map((l,i)=>indices.has(i)?l:"_").join(" "),solution:mot};
+}
+
+function phraseMelangee(texte){
+    return melanger(String(texte||"").trim().split(/\\s+/).filter(Boolean));
+}
+
 function afficherQuestionSession(){
     const el=document.getElementById("revision-session");
     if(!session||session.index>=session.questions.length){afficherResultatRevision();return;}
     const q=session.questions[session.index],mode=session.modesParQuestion[session.index],v=valeurs(q);
-    let contenu="";
+    const bonne=v[1]||"";
+    let contenu='<div class="revision-answer-question"><span class="small-label">'+escapeHtml(MODES_REVISION[mode]?.label||"Révision")+' — '+(session.index+1)+' / '+session.questions.length+'</span>';
+
     if(mode==="flashcards"){
-        contenu='<div class="revision-flashcard"><span class="small-label">QUESTION '+(session.index+1)+' / '+session.questions.length+'</span><h3>'+escapeHtml(promptQuestion(q))+'</h3>'+
-        '<button type="button" class="primary-button" id="reveler-reponse">Afficher la réponse</button>'+
-        '<div id="reponse-cachee" class="revision-hidden-answer" hidden>'+escapeHtml(v[1]).replace(/\n/g,"<br>")+'</div></div>';
+        contenu+='<h3>'+escapeHtml(promptQuestion(q))+'</h3><button type="button" class="primary-button" id="reveler-reponse">Afficher la réponse</button><div id="reponse-cachee" class="revision-hidden-answer" hidden>'+escapeHtml(bonne).replace(/\\n/g,"<br>")+'</div>';
+    }else if(mode==="qcm"){
+        contenu+='<h3>'+escapeHtml(promptQuestion(q))+'</h3><div class="revision-mode-choices">'+construireChoix(q).map(x=>'<button type="button" class="secondary-button revision-choice" data-answer="'+escapeHtml(x)+'">'+escapeHtml(x)+'</button>').join("")+'</div>';
+    }else if(mode==="vrai_faux"){
+        const vrai=Math.random()<.5, proposition=vrai?bonne:(construireChoix(q).find(x=>x!==bonne)||bonne+" (autre réponse)");
+        session.vraiFaux={proposition,correct:vrai};
+        contenu+='<h3>'+escapeHtml(promptQuestion(q))+'</h3><p class="revision-statement">'+escapeHtml(proposition)+'</p><div class="revision-mode-choices"><button type="button" class="secondary-button" id="vf-vrai">Vrai</button><button type="button" class="secondary-button" id="vf-faux">Faux</button></div>';
+    }else if(mode==="definition_terme"){
+        contenu+='<h3>'+escapeHtml(bonne)+'</h3><p>Quel est le terme correspondant ?</p><input id="reponse-revision" type="text" placeholder="Écris le terme"><button type="button" class="primary-button" id="valider-reponse">Valider</button>';
+    }else if(mode==="terme_definition"){
+        contenu+='<h3>'+escapeHtml(v[0])+'</h3><p>Donne la définition ou l'explication.</p><textarea id="reponse-revision" rows="4" placeholder="Écris ta réponse..."></textarea><button type="button" class="primary-button" id="valider-reponse">Valider</button>';
+    }else if(mode==="texte_trous"){
+        const mots=bonne.split(/\\s+/).filter(x=>x.length>3),mot=mots[0]||bonne;
+        const texte=escapeHtml(bonne).replace(new RegExp(escapeHtml(mot),"i"),"____");
+        contenu+='<h3>'+escapeHtml(promptQuestion(q))+'</h3><p class="revision-fill-blank">'+texte+'</p><input id="reponse-revision" type="text" placeholder="Mot manquant"><button type="button" class="primary-button" id="valider-reponse">Valider</button>';
+    }else if(["paires","relier","associer","glisser_deposer"].includes(mode)){
+        contenu+='<h3>'+escapeHtml(v[0])+'</h3><p>Associe la notion à la bonne réponse.</p><div class="revision-mode-choices">'+construireChoix(q).map(x=>'<button type="button" class="secondary-button revision-choice" data-answer="'+escapeHtml(x)+'">'+escapeHtml(x)+'</button>').join("")+'</div>';
+    }else if(mode==="anagramme"||mode==="lettres_melangees"){
+        contenu+='<h3>'+escapeHtml(mode==="anagramme"?"Remets les lettres dans le bon ordre.":"Retrouve le mot.")+'</h3><p class="revision-letter-game">'+escapeHtml(melangerLettres(v[0]||bonne))+'</p><input id="reponse-revision" type="text" placeholder="Ta réponse"><button type="button" class="primary-button" id="valider-reponse">Valider</button>';
+    }else if(mode==="mot_mystere"){
+        const m=motMystere(v[0]||bonne);session.mystere=m.solution;
+        contenu+='<h3>Quel est le mot mystère ?</h3><p class="revision-mystery-word">'+escapeHtml(m.masque)+'</p><input id="reponse-revision" type="text" placeholder="Mot"><button type="button" class="primary-button" id="valider-reponse">Valider</button>';
+    }else if(mode==="phrase_reconstituer"){
+        session.phraseReponse=bonne;
+        contenu+='<h3>Reconstitue la réponse.</h3><p class="revision-letter-game">'+escapeHtml(phraseMelangee(bonne).join(" / "))+'</p><input id="reponse-revision" type="text" placeholder="Phrase reconstituée"><button type="button" class="primary-button" id="valider-reponse">Valider</button>';
+    }else if(mode==="timeline"){
+        contenu+='<h3>'+escapeHtml(v[1])+'</h3><p>Quelle est la date ou période ?</p><input id="reponse-revision" type="text" placeholder="Date ou période"><button type="button" class="primary-button" id="valider-reponse">Valider</button>';
+    }else if(mode==="mots_croises"){
+        contenu+='<h3>Mots croisés</h3><p>Retrouve le terme correspondant à cette définition.</p><p class="revision-statement">'+escapeHtml(bonne||promptQuestion(q))+'</p><input id="reponse-revision" type="text" placeholder="Écris le terme"><button type="button" class="primary-button" id="valider-reponse">Valider</button>';
+    }else if(mode==="mots_meles"){
+        const lettres=[...normaliserTexte(v[0]||bonne).replace(/\\s/g,"")],bruit=melanger("abcdefghijklmnopqrstuvwxyz".split("")).slice(0,Math.min(10,Math.max(4,lettres.length))),grille=melanger([...lettres,...bruit]).join(" ");
+        contenu+='<h3>Mots mêlés</h3><p>Retrouve le mot caché dans les lettres.</p><p class="revision-letter-game">'+escapeHtml(grille)+'</p><input id="reponse-revision" type="text" placeholder="Mot trouvé"><button type="button" class="primary-button" id="valider-reponse">Valider</button>';
+    }else if(mode==="intrus"){
+        const choix=melanger([v[0],...ficheEtude.questions.filter(x=>x!==q).slice(0,3).map(x=>valeurs(x)[0]).filter(Boolean)]),intrus=choix[choix.length-1];
+        session.intrus=intrus;
+        contenu+='<h3>Trouve l’intrus.</h3><p>Choisis la proposition qui est différente.</p><div class="revision-mode-choices">'+choix.map(x=>'<button type="button" class="secondary-button revision-choice" data-answer="'+escapeHtml(x)+'">'+escapeHtml(x)+'</button>').join("")+'</div>';
     }else{
-        const titre=mode==="timeline"?"FRISE CHRONOLOGIQUE":mode==="oral"?"RÉPONSE LIBRE":"QUESTION / RÉPONSE";
-        contenu='<div class="revision-answer-question"><span class="small-label">'+titre+' — '+(session.index+1)+' / '+session.questions.length+'</span>'+
-        '<h3>'+escapeHtml(promptQuestion(q))+'</h3>'+
-        (mode==="timeline"?'<p class="revision-timeline-event">'+escapeHtml(v[1])+'</p>':"")+
-        '<textarea id="reponse-revision" rows="5" placeholder="Écris ta réponse..."></textarea>'+
-        '<button type="button" class="primary-button" id="valider-reponse">Valider</button></div>';
+        contenu+='<h3>'+escapeHtml(promptQuestion(q))+'</h3><textarea id="reponse-revision" rows="5" placeholder="Écris ta réponse..."></textarea><button type="button" class="primary-button" id="valider-reponse">Valider</button>';
     }
+
     cacherToutesLesVues();
     el.hidden=false;
     el.innerHTML='<div class="section-heading"><div><span class="section-label">EN COURS</span><h2>'+escapeHtml(ficheEtude.titre)+'</h2></div></div>'+contenu+'<p id="feedback-revision" class="revision-feedback" role="status"></p>';
+
     if(mode==="flashcards"){
         const reveal=document.getElementById("reveler-reponse");
-        reveal.onclick=()=>{
-            document.getElementById("reponse-cachee").hidden=false;
-            reveal.textContent="Je connaissais la réponse";
-            reveal.onclick=()=>{session.score++;session.index++;afficherQuestionSession();};
-        };
+        reveal.onclick=()=>{document.getElementById("reponse-cachee").hidden=false;reveal.textContent="Je connaissais la réponse";reveal.onclick=()=>{session.score++;session.index++;afficherQuestionSession();};};
+    }else if(mode==="qcm"||["paires","relier","associer","glisser_deposer"].includes(mode)){
+        el.querySelectorAll(".revision-choice").forEach(button=>button.onclick=()=>enregistrerChoix(button.dataset.answer,bonne));
+    }else if(mode==="vrai_faux"){
+        document.getElementById("vf-vrai").onclick=()=>enregistrerChoix("vrai",session.vraiFaux.correct?"vrai":"faux");
+        document.getElementById("vf-faux").onclick=()=>enregistrerChoix("faux",session.vraiFaux.correct?"vrai":"faux");
+    }else if(mode==="intrus"){
+        el.querySelectorAll(".revision-choice").forEach(button=>button.onclick=()=>enregistrerChoix(button.dataset.answer,session.intrus));
     }else{
-        document.getElementById("valider-reponse").onclick=validerReponse;
-        document.getElementById("reponse-revision").focus();
+        const bouton=document.getElementById("valider-reponse");
+        if(bouton){bouton.onclick=validerReponse;const champ=document.getElementById("reponse-revision");if(champ)champ.focus();}
     }
     el.scrollIntoView({behavior:"smooth",block:"start"});
 }
 
+function enregistrerChoix(reponse,attendue){
+    const feedback=document.getElementById("feedback-revision");
+    const correct=normaliserTexte(reponse)===normaliserTexte(attendue);
+    feedback.textContent=correct?"Bonne réponse. Continue comme ça.":"Réponse attendue : "+attendue;
+    feedback.className="revision-feedback "+(correct?"success":"error");
+    if(correct)session.score++;
+    document.querySelectorAll(".revision-choice,#vf-vrai,#vf-faux").forEach(b=>b.disabled=true);
+    const suivant=document.createElement("button");
+    suivant.type="button";suivant.className="primary-button";suivant.textContent="Question suivante";
+    suivant.onclick=()=>{session.index++;afficherQuestionSession();};
+    feedback.after(suivant);
+}
 function validerReponse(){
     if(!session)return;
-    const q=session.questions[session.index];
-    const champ=document.getElementById("reponse-revision");
-    const bouton=document.getElementById("valider-reponse");
-    const feedback=document.getElementById("feedback-revision");
-    const resultat=evaluerReponse(valeurs(q)[1],champ.value);
-    feedback.textContent=resultat.correct?"Bonne réponse. Continue comme ça.":"Réponse attendue : "+valeurs(q)[1];
+    const q=session.questions[session.index],mode=session.modesParQuestion[session.index];
+    const champ=document.getElementById("reponse-revision"),bouton=document.getElementById("valider-reponse"),feedback=document.getElementById("feedback-revision");
+    const attendu=mode==="definition_terme"?valeurs(q)[0]:mode==="timeline"?valeurs(q)[0]:mode==="mot_mystere"?session.mystere:mode==="phrase_reconstituer"?session.phraseReponse:mode==="mots_croises"?valeurs(q)[0]:mode==="mots_meles"?valeurs(q)[0]:mode==="anagramme"||mode==="lettres_melangees"?valeurs(q)[0]:valeurs(q)[1];
+    const resultat=evaluerReponse(attendu,champ.value);
+    feedback.textContent=resultat.correct?"Bonne réponse. Continue comme ça.":"Réponse attendue : "+attendu;
     feedback.className="revision-feedback "+(resultat.correct?"success":"error");
     if(resultat.correct)session.score++;
-    champ.disabled=true;
-    bouton.textContent="Question suivante";
-    bouton.onclick=()=>{session.index++;afficherQuestionSession();};
+    champ.disabled=true;bouton.textContent="Question suivante";bouton.onclick=()=>{session.index++;afficherQuestionSession();};
 }
-
 function afficherResultatRevision(){
     const total=session.questions.length;
     const pct=total?Math.round(session.score/total*100):0;
