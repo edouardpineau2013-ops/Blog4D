@@ -120,6 +120,13 @@ function afficherFiches(fiches) {
             <small>Créée par <strong>${escapeHtml(fiche.auteur_identifiant || "Utilisateur")}</strong> le ${date}</small>
         </article>`;
     }).join("");
+
+    liste.querySelectorAll(".revision-study-button").forEach(button => {
+        button.addEventListener("click", () => {
+            const fiche = fiches.find(item => String(item.id) === String(button.dataset.ficheId));
+            if (fiche) afficherConfigurationRevision(fiche);
+        });
+    });
 }
 
 async function actualiserFiches() {
@@ -131,6 +138,200 @@ async function actualiserFiches() {
         console.error("Erreur chargement fiches :", error);
         liste.innerHTML = '<div class="empty-state revision-empty"><h3>Impossible de charger les fiches</h3><p>Vérifie la configuration Supabase et réessaie.</p></div>';
     }
+}
+
+
+const MODES_REVISION = {
+    questions: { label: "Questions / réponses", types: ["question","definition","vocabulaire","personne","lieu","formule","regle","methode","processus","cause","exemple","liste"] },
+    flashcards: { label: "Cartes mémoire", types: ["question","definition","vocabulaire","personne","lieu","formule","regle","methode","processus","cause","exemple","liste"] },
+    timeline: { label: "Frise chronologique", types: ["date"] },
+    oral: { label: "Réponse libre", types: ["question","definition","vocabulaire","personne","lieu","formule","regle","methode","processus","cause","exemple","liste"] }
+};
+
+let ficheEtude = null;
+let session = null;
+
+function valeurs(q) {
+    const d = q.data || {};
+    const map = {
+        definition:[d.terme,d.definition], question:[d.question,d.reponse],
+        date:[d.date,d.evenement], vocabulaire:[d.mot,d.definition],
+        personne:[d.personne,d.description], lieu:[d.lieu,d.description],
+        formule:[d.formule,d.explication], regle:[d.regle,d.application],
+        methode:[d.objectif,d.etapes], processus:[d.processus,d.etapes],
+        cause:[d.cause,d.consequence], exemple:[d.notion,d.exemple],
+        liste:[d.sujet,d.elements]
+    };
+    return map[q.type] || ["",""];
+}
+
+function modesDisponibles(questions) {
+    const types = new Set(questions.map(q => q.type));
+    return Object.entries(MODES_REVISION).filter(item => item[1].types.some(t => types.has(t)));
+}
+
+function melanger(a) { return [...a].sort(() => Math.random() - 0.5); }
+
+function promptQuestion(q) {
+    const v = valeurs(q);
+    switch(q.type) {
+        case "question": return v[0];
+        case "definition": case "vocabulaire": return "Qu'est-ce que " + v[0] + " ?";
+        case "date": return "À quelle date ou période correspond cet événement ?";
+        case "personne": return "Qui est " + v[0] + " ?";
+        case "lieu": return "Que faut-il retenir sur " + v[0] + " ?";
+        case "formule": return "Quelle est la formule à retenir ?";
+        case "regle": return "Quelle règle faut-il retenir ?";
+        case "methode": case "processus": return "Quelles sont les étapes de " + v[0] + " ?";
+        case "cause": return "Quelle est la cause et la conséquence ?";
+        case "exemple": return "Donne un exemple pour " + v[0] + ".";
+        case "liste": return "Quels éléments faut-il retenir pour " + v[0] + " ?";
+        default: return "Réponds à la question.";
+    }
+}
+
+function normaliserTexte(t) {
+    return String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/['’]/g," ").replace(/[^a-z0-9]+/g," ").replace(/\s+/g," ").trim();
+}
+
+const MOTS_VIDES = new Set("le la les un une des du de d au aux et ou en dans sur sous pour par avec sans est sont a à que qui quoi quel quelle quels quelles ce cette ces se sa son ses il elle ils elles je tu on nous vous".split(" "));
+
+function motsImportants(t) {
+    return normaliserTexte(t).split(" ").filter(m => m.length > 2 && !MOTS_VIDES.has(m));
+}
+
+function evaluerReponse(attendue, reponse) {
+    const a = normaliserTexte(attendue);
+    const r = normaliserTexte(reponse);
+    if (!r) return {correct:false, score:0};
+    if (a === r || a.includes(r) || r.includes(a)) return {correct:true, score:1};
+
+    const aw = [...new Set(motsImportants(a))];
+    const rw = [...new Set(motsImportants(r))];
+    if (!aw.length) return {correct:false, score:0};
+
+    const communs = aw.filter(m => rw.some(x => x === m || x.startsWith(m) || m.startsWith(x)));
+    const couverture = communs.length / aw.length;
+    return {correct: couverture >= (aw.length <= 2 ? 0.5 : 0.6), score: couverture};
+}
+
+function afficherConfigurationRevision(fiche) {
+    ficheEtude = fiche;
+    const config = document.getElementById("revision-config");
+    const modes = modesDisponibles(fiche.questions || []);
+    const max = fiche.questions.length;
+    let modesHtml = "";
+    modes.forEach(item => {
+        modesHtml += '<label class="revision-mode-option"><input type="checkbox" name="revision-mode" value="' + item[0] + '" checked><span>' + item[1].label + '</span></label>';
+    });
+
+    config.innerHTML =
+        '<div class="section-heading"><div><span class="section-label">RÉVISER</span><h2>' + escapeHtml(fiche.titre) + '</h2></div><button type="button" class="secondary-button" id="fermer-config">Fermer</button></div>' +
+        '<p class="revision-intro">Choisis le nombre de questions et les modes de révision.</p>' +
+        '<div class="revision-config-grid"><div class="revision-config-block"><label for="nombre-a-reviser">Nombre de questions</label><input id="nombre-a-reviser" type="number" min="1" max="' + max + '" value="' + Math.min(max,10) + '"><small>Maximum : ' + max + '</small></div>' +
+        '<div class="revision-config-block"><span class="revision-config-label">Modes de révision</span><div class="revision-mode-list">' + modesHtml + '</div></div></div>' +
+        '<button type="button" class="primary-button" id="lancer-revision">Commencer la révision</button><p id="revision-config-status" class="revision-status"></p>';
+
+    config.hidden = false;
+    document.getElementById("revision-accueil").hidden = true;
+    document.getElementById("revision-editor").hidden = true;
+    config.scrollIntoView({behavior:"smooth",block:"start"});
+
+    document.getElementById("fermer-config").onclick = () => {
+        config.hidden = true;
+        document.getElementById("revision-accueil").hidden = false;
+    };
+    document.getElementById("lancer-revision").onclick = lancerRevision;
+}
+
+function lancerRevision() {
+    const nombre = Number(document.getElementById("nombre-a-reviser").value);
+    const modes = [...document.querySelectorAll('input[name="revision-mode"]:checked')].map(x => x.value);
+    const status = document.getElementById("revision-config-status");
+
+    if (!nombre || nombre < 1 || nombre > ficheEtude.questions.length) {
+        status.textContent = "Choisis un nombre de questions valide.";
+        status.className = "revision-status error";
+        return;
+    }
+    if (!modes.length) {
+        status.textContent = "Sélectionne au moins un mode de révision.";
+        status.className = "revision-status error";
+        return;
+    }
+
+    session = {questions:melanger(ficheEtude.questions).slice(0,nombre), modes:modes, index:0, score:0};
+    afficherQuestionSession();
+}
+
+function afficherQuestionSession() {
+    const el = document.getElementById("revision-session");
+    const q = session.questions[session.index];
+    if (!q) return afficherResultatRevision();
+
+    const mode = session.modes[session.index % session.modes.length];
+    const v = valeurs(q);
+    let html = "";
+
+    if (mode === "flashcards") {
+        html = '<div class="revision-flashcard"><span class="small-label">QUESTION ' + (session.index+1) + ' / ' + session.questions.length + '</span><h3>' + escapeHtml(promptQuestion(q)) + '</h3><button type="button" class="primary-button" id="reveler-reponse">Afficher la réponse</button><div id="reponse-cachee" class="revision-hidden-answer" hidden>' + escapeHtml(v[1]).replace(/\n/g,"<br>") + '</div></div>';
+    } else {
+        const title = mode === "timeline" ? "FRISE CHRONOLOGIQUE" : (mode === "oral" ? "RÉPONSE LIBRE" : "QUESTION / RÉPONSE");
+        const prompt = mode === "timeline" ? "Quelle est la date ou période de cet événement ?" : promptQuestion(q);
+        html = '<div class="revision-answer-question"><span class="small-label">' + title + ' — ' + (session.index+1) + ' / ' + session.questions.length + '</span><h3>' + escapeHtml(prompt) + '</h3>' + (mode === "timeline" ? '<p>' + escapeHtml(v[1]) + '</p>' : '') + '<textarea id="reponse-revision" rows="5" placeholder="Écris ta réponse..."></textarea><button type="button" class="primary-button" id="valider-reponse">Valider</button></div>';
+    }
+
+    el.innerHTML = '<div class="section-heading"><div><span class="section-label">EN COURS</span><h2>' + escapeHtml(ficheEtude.titre) + '</h2></div></div>' + html + '<p id="feedback-revision" class="revision-feedback"></p>';
+    document.getElementById("revision-config").hidden = true;
+    document.getElementById("revision-accueil").hidden = true;
+    el.hidden = false;
+    el.scrollIntoView({behavior:"smooth",block:"start"});
+
+    const valider = document.getElementById("valider-reponse");
+    if (valider) valider.onclick = validerReponse;
+    const champ = document.getElementById("reponse-revision");
+    if (champ) champ.focus();
+
+    const reveler = document.getElementById("reveler-reponse");
+    if (reveler) reveler.onclick = () => {
+        document.getElementById("reponse-cachee").hidden = false;
+        reveler.textContent = "Je connaissais la réponse";
+        reveler.onclick = () => { session.score++; session.index++; afficherQuestionSession(); };
+    };
+}
+
+function validerReponse() {
+    const q = session.questions[session.index];
+    const resultat = evaluerReponse(valeurs(q)[1], document.getElementById("reponse-revision").value);
+    const feedback = document.getElementById("feedback-revision");
+    feedback.textContent = resultat.correct ? "Bonne réponse. Continue comme ça." : "Réponse attendue : " + valeurs(q)[1];
+    feedback.className = "revision-feedback " + (resultat.correct ? "success" : "error");
+    if (resultat.correct) session.score++;
+    const bouton = document.getElementById("valider-reponse");
+    bouton.textContent = "Question suivante";
+    bouton.onclick = () => { session.index++; afficherQuestionSession(); };
+    document.getElementById("reponse-revision").disabled = true;
+}
+
+function afficherResultatRevision() {
+    const total = session.questions.length;
+    const pct = Math.round(session.score / total * 100);
+    let commentaire = "Continue tes révisions : chaque question travaillée te fait progresser.";
+    if (pct === 100) commentaire = "Excellent travail : toutes les réponses sont correctes.";
+    else if (pct >= 80) commentaire = "Très bon travail : tes connaissances sont bien maîtrisées.";
+    else if (pct >= 60) commentaire = "Bon travail : encore quelques révisions et ce sera solide.";
+    else if (pct >= 40) commentaire = "Tu as les bases. Reprends les points difficiles et réessaie.";
+
+    const el = document.getElementById("revision-session");
+    el.innerHTML = '<div class="revision-result"><span class="section-label">RÉSULTAT</span><h2>' + pct + '%</h2><p class="revision-score">' + session.score + ' / ' + total + '</p><p>' + commentaire + '</p><button type="button" class="primary-button" id="recommencer-revision">Recommencer</button> <button type="button" class="secondary-button" id="retour-fiches">Retour aux fiches</button></div>';
+    document.getElementById("recommencer-revision").onclick = () => {
+        session = {questions:melanger(ficheEtude.questions).slice(0,total), modes:session.modes, index:0, score:0};
+        afficherQuestionSession();
+    };
+    document.getElementById("retour-fiches").onclick = () => {
+        el.hidden = true;
+        document.getElementById("revision-accueil").hidden = false;
+    };
 }
 
 function escapeHtml(value) {
