@@ -304,11 +304,14 @@ function peutPlacerCroise(grille,word,row,col,dir){
 }
 
 function construireMotsCroises(questions,size=13){
-    const candidats=questions.map(extraireMotCroise).filter(Boolean);
+    const candidats=melanger(questions.map(extraireMotCroise).filter(Boolean));
     const uniques=[...new Map(candidats.map(x=>[x.solution,x])).values()].sort((a,b)=>b.solution.length-a.solution.length).slice(0,7);
     const grid=Array.from({length:size},()=>Array(size).fill(null)),entries=[];
     if(!uniques.length)return {size,grid,entries};
-    const first=uniques.shift(),row=Math.floor(size/2),col=Math.floor((size-first.solution.length)/2);
+    const premiers=uniques.slice(0,Math.min(3,uniques.length));
+    const first=premiers[Math.floor(Math.random()*premiers.length)];
+    uniques.splice(uniques.indexOf(first),1);
+    const row=Math.floor(size/2),col=Math.floor((size-first.solution.length)/2);
     for(let i=0;i<first.solution.length;i++)grid[row][col+i]={letter:first.solution[i]};
     entries.push({number:0,...first,row,col,dir:"across"});
 
@@ -429,13 +432,13 @@ function afficherQuestionSession(){
     }else if(["paires","relier","associer","glisser_deposer"].includes(mode)){
         const choix=construireChoix(q);session.associationMode=mode;session.associationAnswer=bonne;
         if(mode==="paires"||mode==="associer"){
-            contenu+='<h3>'+escapeHtml(MODES_REVISION[mode].label)+'</h3><p>Choisis la bonne réponse.</p><div class="revision-mode-choices">'+choix.map(x=>'<button type="button" class="secondary-button revision-choice" data-answer="'+escapeHtml(x)+'">'+escapeHtml(x)+'</button>').join("")+'</div>';
+            contenu+='<h3>'+escapeHtml(MODES_REVISION[mode].label)+'</h3><h4>'+escapeHtml(promptQuestion(q))+'</h4><p>Choisis la bonne réponse.</p><div class="revision-mode-choices">'+choix.map(x=>'<button type="button" class="secondary-button revision-choice" data-answer="'+escapeHtml(x)+'">'+escapeHtml(x)+'</button>').join("")+'</div>';
         }else if(mode==="relier"){
             const sources=melanger([q,...ficheEtude.questions.filter(x=>x!==q)]).slice(0,Math.min(4,ficheEtude.questions.length));
             const liens=sources.map((x,i)=>({id:"relier-"+i,gauche:valeurs(x)[0],droite:valeurs(x)[1]}));session.relier=liens;
             contenu+='<h3>Relier</h3><p>Clique sur un élément à gauche puis sur sa réponse à droite pour créer un trait.</p><div class="revision-linking" id="revision-linking"><svg class="revision-link-lines" aria-hidden="true"></svg><div class="revision-link-column">'+liens.map(x=>'<button type="button" class="revision-link-item revision-link-left" data-id="'+x.id+'">'+escapeHtml(x.gauche)+'</button>').join("")+'</div><div class="revision-link-column">'+melanger(liens).map(x=>'<button type="button" class="revision-link-item revision-link-right" data-id="'+x.id+'">'+escapeHtml(x.droite)+'</button>').join("")+'</div></div>';
         }else{
-            contenu+='<h3>Glisser-déposer</h3><p>Glisse la bonne réponse dans la zone ou clique dessus.</p><div class="revision-drag-options">'+choix.map(x=>'<button type="button" draggable="true" class="secondary-button revision-choice revision-drag-item" data-answer="'+escapeHtml(x)+'">'+escapeHtml(x)+'</button>').join("")+'</div><div id="revision-drop-zone" class="revision-drop-zone" tabindex="0">Dépose la réponse ici</div>';
+            contenu+='<h3>Glisser-déposer</h3><h4>'+escapeHtml(promptQuestion(q))+'</h4><p>Glisse la bonne réponse dans la zone ou clique dessus.</p><div class="revision-drag-options">'+choix.map(x=>'<button type="button" draggable="true" class="secondary-button revision-choice revision-drag-item" data-answer="'+escapeHtml(x)+'">'+escapeHtml(x)+'</button>').join("")+'</div><div id="revision-drop-zone" class="revision-drop-zone" tabindex="0">Dépose la réponse ici</div>';
         }
     }else if(mode==="mots_croises"){
         const croise=construireMotsCroises(ficheEtude.questions,13);session.motsCroises=croise;
@@ -447,9 +450,13 @@ function afficherQuestionSession(){
         session.motsMeles=jeu;session.dernierMotsMeles=signature;
         contenu+='<h3>Mots mêlés</h3><p>Retrouve le mot caché. Tu peux écrire le mot ou sélectionner directement ses lettres.</p><div class="revision-word-grid" id="revision-word-grid" aria-label="Grille de mots mêlés">'+jeu.grille.map((row,r)=>'<div class="revision-word-grid-row">'+row.map((letter,col)=>'<button type="button" class="revision-word-cell" data-word-row="'+r+'" data-word-col="'+col+'">'+escapeHtml(letter.toUpperCase())+'</button>').join("")+'</div>').join("")+'</div><div class="revision-word-answer"><input id="reponse-revision" type="text" placeholder="Mot trouvé" autocomplete="off"><button type="button" class="primary-button" id="valider-reponse">Valider</button></div>';
     }else if(mode==="intrus"){
-        const choix=melanger([v[0],...ficheEtude.questions.filter(x=>x!==q).slice(0,3).map(x=>valeurs(x)[0]).filter(Boolean)]),intrus=choix[choix.length-1];
-        session.intrus=intrus;
-        contenu+='<h3>Trouve l’intrus.</h3><p>Choisis la proposition qui est différente.</p><div class="revision-mode-choices">'+choix.map(x=>'<button type="button" class="secondary-button revision-choice" data-answer="'+escapeHtml(x)+'">'+escapeHtml(x)+'</button>').join("")+'</div>';
+        const candidats=ficheEtude.questions.filter(x=>x!==q).map(x=>String(valeurs(x)[0]||"").trim()).filter(Boolean);
+        const banque=["arbre","voiture","océan","montagne","livre","ordinateur","chaise","soleil","rivière","musique","football","pomme","maison","avion","jardin","fenêtre","bateau","forêt","pluie","étoile","chocolat","vélo","chat","chien"];
+        const disponibles=[...new Map([...candidats,...banque].map(x=>[normaliserTexte(x),x])).values()].filter(x=>normaliserTexte(x)!==normaliserTexte(v[0]));
+        const autres=melanger(disponibles).slice(0,3);
+        const choix=melanger([v[0],...autres]);
+        session.intrus=v[0];
+        contenu+='<h3>Trouve l’intrus.</h3><p>'+escapeHtml(promptQuestion(q))+'</p><p>Choisis la proposition qui est différente.</p><div class="revision-mode-choices">'+choix.map(x=>'<button type="button" class="secondary-button revision-choice" data-answer="'+escapeHtml(x)+'">'+escapeHtml(x)+'</button>').join("")+'</div>';
     }else{
         contenu+='<h3>'+escapeHtml(promptQuestion(q))+'</h3><textarea id="reponse-revision" rows="5" placeholder="Écris ta réponse..."></textarea><button type="button" class="primary-button" id="valider-reponse">Valider</button>';
     }
@@ -483,50 +490,55 @@ function afficherQuestionSession(){
         const entreePour=(input,direction)=>{const r=Number(input.dataset.crossRow),c=Number(input.dataset.crossCol);return session.motsCroises.entries.find(entry=>entry.dir===direction&&Array.from({length:entry.solution.length},(_,i)=>[entry.row+(entry.dir==="down"?i:0),entry.col+(entry.dir==="across"?i:0)]).some(([rr,cc])=>rr===r&&cc===c));};
         const celluleCroisee=(row,col)=>inputs.find(x=>Number(x.dataset.crossRow)===row&&Number(x.dataset.crossCol)===col);
 
+        const directionsParCellule=input=>{
+            const r=Number(input.dataset.crossRow),c=Number(input.dataset.crossCol);
+            return ["across","down"].filter(direction=>entreePour(input,direction));
+        };
+        let directionActive="across";
         inputs.forEach(input=>{
+            input.addEventListener("focus",()=>{
+                const dirs=directionsParCellule(input);
+                if(dirs.length===1)directionActive=dirs[0];
+            });
+            input.addEventListener("click",()=>{
+                const dirs=directionsParCellule(input);
+                if(dirs.length===2)directionActive=directionActive==="down"?"across":"down";
+                else if(dirs.length===1)directionActive=dirs[0];
+            });
             input.addEventListener("input",()=>{
                 input.value=normaliserTexte(input.value).replace(/\s/g,"").slice(-1).toUpperCase();
                 input.classList.remove("incorrect");
-                const entry=entreePour(input,"across")||entreePour(input,"down");
+                const entry=entreePour(input,directionActive)||entreePour(input,directionActive==="down"?"across":"down");
                 if(!entry)return;
-                const r=Number(input.dataset.crossRow),c=Number(input.dataset.crossCol),i=entry.dir==="down"?r-entry.row:c-entry.col;
-                celluleCroisee(
-                    entry.row+(entry.dir==="down"?i+1:0),
-                    entry.col+(entry.dir==="across"?i+1:0)
-                )?.focus();
+                const r=Number(input.dataset.crossRow),cc=Number(input.dataset.crossCol),i=entry.dir==="down"?r-entry.row:cc-entry.col;
+                celluleCroisee(entry.row+(entry.dir==="down"?i+1:0),entry.col+(entry.dir==="across"?i+1:0))?.focus();
             });
-
             input.addEventListener("keydown",event=>{
-                const directions={
-                    ArrowLeft:[0,-1],
-                    ArrowRight:[0,1],
-                    ArrowUp:[-1,0],
-                    ArrowDown:[1,0]
-                };
-
+                const directions={ArrowLeft:[0,-1,"across"],ArrowRight:[0,1,"across"],ArrowUp:[-1,0,"down"],ArrowDown:[1,0,"down"]};
                 if(directions[event.key]){
                     event.preventDefault();
-                    const [dr,dc]=directions[event.key];
-                    let row=Number(input.dataset.crossRow)+dr;
-                    let col=Number(input.dataset.crossCol)+dc;
-                    const cible=celluleCroisee(row,col);
+                    const [dr,dc,dir]=directions[event.key];
+                    directionActive=dir;
+                    const cible=celluleCroisee(Number(input.dataset.crossRow)+dr,Number(input.dataset.crossCol)+dc);
                     if(cible)cible.focus();
                     return;
                 }
-
                 if(event.key==="Backspace"&&!input.value){
                     event.preventDefault();
-                    const entry=entreePour(input,"across")||entreePour(input,"down");
+                    const entry=entreePour(input,directionActive)||entreePour(input,directionActive==="down"?"across":"down");
                     if(!entry)return;
-                    const r=Number(input.dataset.crossRow),c=Number(input.dataset.crossCol),i=entry.dir==="down"?r-entry.row:c-entry.col;
-                    celluleCroisee(
-                        entry.row+(entry.dir==="down"?i-1:0),
-                        entry.col+(entry.dir==="across"?i-1:0)
-                    )?.focus();
+                    const r=Number(input.dataset.crossRow),cc=Number(input.dataset.crossCol),i=entry.dir==="down"?r-entry.row:cc-entry.col;
+                    celluleCroisee(entry.row+(entry.dir==="down"?i-1:0),entry.col+(entry.dir==="across"?i-1:0))?.focus();
                 }
             });
         });
-        el.querySelectorAll(".revision-crossword-clue").forEach(clue=>clue.onclick=()=>{const [number,direction]=clue.dataset.crossEntry.split("-"),entry=session.motsCroises.entries.find(x=>String(x.number)===number&&x.dir===direction);inputs.find(x=>Number(x.dataset.crossRow)===entry?.row&&Number(x.dataset.crossCol)===entry?.col)?.focus();});
+        el.querySelectorAll(".revision-crossword-clue").forEach(clue=>clue.onclick=()=>{
+            const [number,direction]=clue.dataset.crossEntry.split("-");
+            const entry=session.motsCroises.entries.find(x=>String(x.number)===number&&x.dir===direction);
+            if(!entry)return;
+            directionActive=direction;
+            inputs.find(x=>Number(x.dataset.crossRow)===entry.row&&Number(x.dataset.crossCol)===entry.col)?.focus();
+        });
         bouton?.addEventListener("click",()=>{
             let total=0,correct=0;session.motsCroises.grid.forEach((row,r)=>row.forEach((cell,c)=>{if(!cell)return;const input=el.querySelector('[data-cross-row="'+r+'"][data-cross-col="'+c+'"]');if(!input)return;total++;const value=normaliserTexte(input.value).replace(/\s/g,"");input.classList.remove("correct","incorrect");if(value===cell.letter){correct++;input.classList.add("correct");}else if(value)input.classList.add("incorrect");}));
             const feedback=document.getElementById("feedback-revision");
