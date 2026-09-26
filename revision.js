@@ -356,7 +356,7 @@ function construireGrilleMotsMeles(mot,taille=12){
     for(let r=0;r<n;r++)for(let col=0;col<n;col++){
         if(!grille[r][col])grille[r][col]=lettres[Math.floor(Math.random()*lettres.length)];
     }
-    return {grille,mot:motNet,placement};
+    return {size:n,grille,mot:motNet,placement};
 }
 
 function afficherQuestionSession(){
