@@ -333,16 +333,7 @@ function construireMotsCroises(questions,size=13){
     entries.sort((a,b)=>a.row-b.row||a.col-b.col||a.dir.localeCompare(b.dir));
     for(const entry of entries){const key=entry.row+"-"+entry.col;if(!starts.has(key))starts.set(key,number++);entry.number=starts.get(key);}
 
-    const cellules=[];
-    grid.forEach((row,r)=>row.forEach((cell,col)=>{if(cell)cellules.push([r,col]);}));
-    if(!cellules.length)return {size,grid,entries};
-    const minR=Math.max(0,Math.min(...cellules.map(x=>x[0]))-1);
-    const maxR=Math.min(size-1,Math.max(...cellules.map(x=>x[0]))+1);
-    const minC=Math.max(0,Math.min(...cellules.map(x=>x[1]))-1);
-    const maxC=Math.min(size-1,Math.max(...cellules.map(x=>x[1]))+1);
-    const compact=grid.slice(minR,maxR+1).map(row=>row.slice(minC,maxC+1));
-    entries.forEach(entry=>{entry.row-=minR;entry.col-=minC;});
-    return {size:compact.length,grid:compact,entries};
+    return {size,grid,entries};
 }
 
 function rendreMotsCroises(croise){
