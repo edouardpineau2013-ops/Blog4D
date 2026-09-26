@@ -516,33 +516,68 @@ function afficherQuestionSession(){
             }
         });
     }else if(mode==="mots_meles"){
-        let jeu,signature,essais=0;
-        do{jeu=construireGrilleMotsMeles(motPourMotsMeles(q),12);signature=jeu.grille.map(row=>row.join("")).join("");essais++;}while(signature===session.dernierMotsMeles&&essais<10);
-        session.motsMeles=jeu;session.dernierMotsMeles=signature;
-        contenu+='<h3>Mots mêlés</h3><p>Retrouve le mot caché. Tu peux écrire le mot ou sélectionner directement ses lettres.</p><div class="revision-word-grid" id="revision-word-grid" aria-label="Grille de mots mêlés">'+jeu.grille.map((row,r)=>'<div class="revision-word-grid-row">'+row.map((letter,col)=>'<button type="button" class="revision-word-cell" data-word-row="'+r+'" data-word-col="'+col+'">'+escapeHtml(letter.toUpperCase())+'</button>').join("")+'</div>').join("")+'</div><div class="revision-word-answer"><input id="reponse-revision" type="text" placeholder="Mot trouvé" autocomplete="off"><button type="button" class="primary-button" id="valider-reponse">Valider</button></div>';
-    }else if(mode==="intrus"){
-        const base=String(v[0]||"").trim();
-        const ficheMots=ficheEtude.questions
-            .filter(x=>x!==q)
-            .map(x=>String(valeurs(x)[0]||"").trim())
-            .filter(Boolean);
-        const banqueIntrus=["ballon","banane","voiture","ordinateur","chat","chien","maison","vélo","avion","pizza","guitare","soleil","plage","forêt","montre","chaussure","table","lampe","football","chocolat","train","bateau","jardin","parapluie","téléphone","pomme"];
-        const banqueThematique=["notion","concept","élément","exemple","processus","principe","règle","méthode","événement","personne","lieu","formule"];
-        const thematiques=[base,...ficheMots,...banqueThematique]
-            .filter(Boolean)
-            .filter((x,i,a)=>a.findIndex(y=>normaliserTexte(y)===normaliserTexte(x))===i)
-            .slice(0,3);
-        while(thematiques.length<3){
-            const ajout=banqueThematique.find(x=>!thematiques.some(y=>normaliserTexte(y)===normaliserTexte(x)));
-            if(!ajout)break;
-            thematiques.push(ajout);
-        }
-        const intrusDisponibles=banqueIntrus.filter(x=>!thematiques.some(y=>normaliserTexte(y)===normaliserTexte(x)));
-        const intrus=intrusDisponibles[Math.floor(Math.random()*intrusDisponibles.length)]||"ballon";
-        const choix=melanger([...thematiques,intrus]);
-        session.intrus=intrus;
-        contenu+='<h3>Trouve l’intrus.</h3><p>'+escapeHtml(promptQuestion(q))+'</p><p>Trois propositions correspondent au thème de la question, une est l’intrus.</p><div class="revision-mode-choices">'+choix.map(x=>'<button type="button" class="secondary-button revision-choice" data-answer="'+escapeHtml(x)+'">'+escapeHtml(x)+'</button>').join("")+'</div>';
-    }else{
+        const grille=document.getElementById("revision-word-grid");
+        let debut=null;
+        let selection=[];
+        const effacer=()=>{
+            selection.forEach(cell=>cell.classList.remove("selected"));
+            selection=[];
+            debut=null;
+        };
+        const cellule=(r,c)=>grille?.querySelector('[data-word-row="'+r+'"][data-word-col="'+c+'"]');
+        const validerSelection=()=>{
+            if(!selection.length)return;
+            const mot=selection.map(cell=>normaliserTexte(cell.textContent)).join("");
+            const inverse=[...mot].reverse().join("");
+            const correct=mot===session.motsMeles.mot||inverse===session.motsMeles.mot;
+            const feedback=document.getElementById("feedback-revision");
+            if(correct){
+                selection.forEach(cell=>cell.classList.add("found"));
+                marquerQuestionReussie();
+                feedback.textContent="Mot trouvé !";
+                feedback.className="revision-feedback success";
+                selection.forEach(cell=>cell.disabled=true);
+                const bouton=document.createElement("button");
+                bouton.type="button";
+                bouton.className="primary-button";
+                bouton.textContent="Question suivante";
+                bouton.onclick=()=>{session.index++;afficherQuestionSession();};
+                feedback.after(bouton);
+            }else{
+                feedback.textContent="Ce n’est pas le bon mot. Recommence.";
+                feedback.className="revision-feedback error";
+                effacer();
+            }
+        };
+        grille?.querySelectorAll(".revision-word-cell").forEach(cell=>cell.addEventListener("click",()=>{
+            if(cell.disabled)return;
+            const r=Number(cell.dataset.wordRow),c=Number(cell.dataset.wordCol);
+            if(!debut){
+                debut={r,c};
+                selection=[cell];
+                cell.classList.add("selected");
+                return;
+            }
+            const dr=Math.sign(r-debut.r),dc=Math.sign(c-debut.c);
+            const distance=Math.max(Math.abs(r-debut.r),Math.abs(c-debut.c));
+            if(distance===0||!(dr===0||dc===0||Math.abs(r-debut.r)===Math.abs(c-debut.c))){
+                effacer();
+                debut={r,c};
+                selection=[cell];
+                cell.classList.add("selected");
+                return;
+            }
+            selection.forEach(x=>x.classList.remove("selected"));
+            selection=[];
+            for(let i=0;i<=distance;i++){
+                const cible=cellule(debut.r+dr*i,debut.c+dc*i);
+                if(!cible){effacer();return;}
+                selection.push(cible);
+            }
+            selection.forEach(x=>x.classList.add("selected"));
+            validerSelection();
+        }));
+        }else{
         contenu+='<h3>'+escapeHtml(promptQuestion(q))+'</h3><textarea id="reponse-revision" rows="5" placeholder="Écris ta réponse..."></textarea><button type="button" class="primary-button" id="valider-reponse">Valider</button>';
     }
 
