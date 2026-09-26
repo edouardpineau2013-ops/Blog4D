@@ -260,73 +260,61 @@ function extraireMotCroise(q){
 function peutPlacerCroise(grille,word,row,col,dir){
     const n=grille.length,dr=dir==="down"?1:0,dc=dir==="across"?1:0;
     const finR=row+dr*(word.length-1),finC=col+dc*(word.length-1);
-    if(row<0||col<0||finR>=n||finC>=n)return 0;
-
+    if(row<0||col<0||finR>=n||finC>=n)return false;
     const avantR=row-dr,avantC=col-dc,apresR=finR+dr,apresC=finC+dc;
-    if(avantR>=0&&avantR<n&&avantC>=0&&avantC<n&&grille[avantR][avantC])return 0;
-    if(apresR>=0&&apresR<n&&apresC>=0&&apresC<n&&grille[apresR][apresC])return 0;
-
+    if(avantR>=0&&avantR<n&&avantC>=0&&avantC<n&&grille[avantR][avantC])return false;
+    if(apresR>=0&&apresR<n&&apresC>=0&&apresC<n&&grille[apresR][apresC])return false;
     let intersections=0;
     for(let i=0;i<word.length;i++){
         const r=row+dr*i,cc=col+dc*i,cell=grille[r][cc];
-        if(cell&&cell.letter!==word[i])return 0;
+        if(cell&&cell.letter!==word[i])return false;
         if(cell)intersections++;
-        const voisins=dir==="across"?[[r-1,cc],[r+1,cc]]:[[r,cc-1],[r,cc+1]];
+        const voisins=dir==="across" ? [[r-1,cc],[r+1,cc]] : [[r,cc-1],[r,cc+1]];
         for(const [vr,vc] of voisins){
-            if(vr>=0&&vr<n&&vc>=0&&vc<n&&grille[vr][vc]&&!cell)return 0;
+            if(vr>=0&&vr<n&&vc>=0&&vc<n&&grille[vr][vc]&&!cell)return false;
         }
     }
     return intersections;
 }
 
-function construireMotsCroises(questions,size=13){
+function construireMotsCroises(questions,size=15){
     const candidats=questions.map(extraireMotCroise).filter(Boolean);
-    const uniques=[...new Map(candidats.map(x=>[x.solution,x])).values()]
-        .sort((a,b)=>b.solution.length-a.solution.length).slice(0,7);
-
+    if(!candidats.length)return {size,grid:Array.from({length:size},()=>Array(size).fill(null)),entries:[]};
+    const uniques=[...new Map(candidats.map(x=>[x.solution,x])).values()].sort((a,b)=>b.solution.length-a.solution.length).slice(0,8);
     const grid=Array.from({length:size},()=>Array(size).fill(null));
     const entries=[];
-    if(!uniques.length)return {size,grid,entries};
-
     const premier=uniques.shift();
-    const row=Math.floor(size/2);
-    const col=Math.floor((size-premier.solution.length)/2);
-    for(let i=0;i<premier.solution.length;i++)grid[row][col+i]={letter:premier.solution[i]};
-    entries.push({number:0,...premier,row,col,dir:"across"});
-
+    const ligne=Math.floor(size/2),col=Math.max(0,Math.floor((size-premier.solution.length)/2));
+    for(let i=0;i<premier.solution.length;i++)grid[ligne][col+i]={letter:premier.solution[i]};
+    entries.push({number:1,...premier,row:ligne,col,dir:"across"});
+    let prochainNumero=2;
     for(const word of uniques){
         let meilleur=null;
         for(let i=0;i<word.solution.length;i++){
-            for(let r=0;r<size;r++){
-                for(let cc=0;cc<size;cc++){
-                    const cell=grid[r][cc];
-                    if(!cell||cell.letter!==word.solution[i])continue;
-                    for(const dir of ["down","across"]){
-                        const dr=dir==="down"?1:0,dc=dir==="across"?1:0;
-                        const rr=r-dr*i,ccc=cc-dc*i;
-                        const intersections=peutPlacerCroise(grid,word.solution,rr,ccc,dir);
-                        if(intersections>0&&(!meilleur||intersections>meilleur.intersections))
-                            meilleur={row:rr,col:ccc,dir,intersections};
-                    }
-                }
+            for(let r=0;r<size;r++)for(let cc=0;cc<size;cc++){
+                const cell=grid[r][cc];
+                if(!cell||cell.letter!==word.solution[i])continue;
+                const dir=entries.some(e=>e.row===r&&e.col<=cc&&e.dir==="across")?"down":"across";
+                const dr=dir==="down"?1:0,dc=dir==="across"?1:0;
+                const rr=r-dr*i,ccc=cc-dc*i;
+                const intersections=peutPlacerCroise(grid,word.solution,rr,ccc,dir);
+                if(intersections>0&&(!meilleur||intersections>meilleur.intersections))meilleur={row:rr,col:ccc,dir,intersections};
             }
         }
         if(!meilleur)continue;
         for(let i=0;i<word.solution.length;i++){
-            const r=meilleur.row+(meilleur.dir==="down"?i:0);
-            const cc=meilleur.col+(meilleur.dir==="across"?i:0);
-            if(!grid[r][cc])grid[r][cc]={letter:word.solution[i]};
+            const r=meilleur.row+(meilleur.dir==="down"?i:0),cc=meilleur.col+(meilleur.dir==="across"?i:0);
+            grid[r][cc]=grid[r][cc]||{letter:word.solution[i]};
         }
-        entries.push({number:0,...word,row:meilleur.row,col:meilleur.col,dir:meilleur.dir});
+        entries.push({number:prochainNumero++,...word,row:meilleur.row,col:meilleur.col,dir:meilleur.dir});
     }
-
+    // Recompute clue numbers from actual starts.
     const starts=new Map();
     let numero=1;
-    entries.sort((a,b)=>a.row-b.row||a.col-b.col||a.dir.localeCompare(b.dir));
-    for(const entry of entries){
-        const key=entry.row+"-"+entry.col;
+    for(const e of entries){
+        const key=e.row+"-"+e.col;
         if(!starts.has(key))starts.set(key,numero++);
-        entry.number=starts.get(key);
+        e.number=starts.get(key);
     }
     return {size,grid,entries};
 }
@@ -334,37 +322,22 @@ function construireMotsCroises(questions,size=13){
 function rendreMotsCroises(croise){
     const numeros={};
     croise.entries.forEach(e=>{numeros[e.row+"-"+e.col]=e.number;});
-    const grille='<div class="revision-crossword-wrap"><div class="revision-crossword" style="--cross-size:'+croise.size+'">'+
+    return '<div class="revision-crossword-wrap"><div class="revision-crossword" style="--cross-size:'+croise.size+'">'+
         croise.grid.map((row,r)=>'<div class="revision-crossword-row">'+row.map((cell,col)=>{
             if(!cell)return '<span class="revision-crossword-cell empty"></span>';
             const num=numeros[r+"-"+col];
             return '<label class="revision-crossword-cell">'+(num?'<small>'+num+'</small>':"")+
-                '<input maxlength="1" autocomplete="off" data-cross-row="'+r+'" data-cross-col="'+col+'"></label>';
+                '<input maxlength="1" autocomplete="off" data-cross-row="'+r+'" data-cross-col="'+col+'" aria-label="Case '+(r+1)+','+(col+1)+'"></label>';
         }).join("")+'</div>').join("")+'</div></div>';
-
-    const clues=(title,list)=>'<div class="revision-crossword-clue-group"><h4>'+title+'</h4>'+
-        (list.length?list.map(e=>'<button type="button" class="revision-crossword-clue" data-cross-entry="'+e.number+'-'+e.dir+'"><strong>'+e.number+'.</strong> '+escapeHtml(e.indice)+' <span>('+e.solution.length+')</span></button>').join(""):'<p>Aucun indice.</p>')+
-        '</div>';
-
-    return grille+clues("Horizontal",croise.entries.filter(e=>e.dir==="across"))+clues("Vertical",croise.entries.filter(e=>e.dir==="down"));
 }
-
-function motPourMotsMeles(q){
-    const v=valeurs(q);
-    const source=q?.type==="question"?v[1]:v[0];
-    const mot=normaliserTexte(source).replace(/\s/g,"");
-    return mot.length>=3&&mot.length<=12?mot:"";
-}
-
 function construireGrilleMotsMeles(mot,taille=12){
     const motNet=normaliserTexte(mot).replace(/\s/g,"");
-    const n=12;
+    const n=Math.max(taille,Math.min(12,Math.max(6,motNet.length+2)));
     const grille=Array.from({length:n},()=>Array(n).fill(""));
-    if(!motNet||motNet.length>n)return {size:n,grille,mot:motNet,placement:null};
-
+    const directions=melanger([[0,1],[1,0],[1,1],[-1,1]]);
     let placement=null;
-    for(const [dr,dc] of melanger([[0,1],[1,0],[1,1],[-1,1]])){
-        for(let tentative=0;tentative<200&&!placement;tentative++){
+    for(const [dr,dc] of directions){
+        for(let tentative=0;tentative<100&&!placement;tentative++){
             const r0=Math.floor(Math.random()*n),c0=Math.floor(Math.random()*n);
             const r1=r0+dr*(motNet.length-1),c1=c0+dc*(motNet.length-1);
             if(r1<0||r1>=n||c1<0||c1>=n)continue;
@@ -379,7 +352,6 @@ function construireGrilleMotsMeles(mot,taille=12){
         }
         if(placement)break;
     }
-
     const lettres="abcdefghijklmnopqrstuvwxyz";
     for(let r=0;r<n;r++)for(let col=0;col<n;col++){
         if(!grille[r][col])grille[r][col]=lettres[Math.floor(Math.random()*lettres.length)];
@@ -388,7 +360,6 @@ function construireGrilleMotsMeles(mot,taille=12){
 }
 
 function afficherQuestionSession(){
-    if(session?.relierCleanup){session.relierCleanup();session.relierCleanup=null;}
     const el=document.getElementById("revision-session");
     if(!session||session.index>=session.questions.length){afficherResultatRevision();return;}
     const q=session.questions[session.index],mode=session.modesParQuestion[session.index],v=valeurs(q);
@@ -396,193 +367,189 @@ function afficherQuestionSession(){
     let contenu='<div class="revision-answer-question"><span class="small-label">'+escapeHtml(MODES_REVISION[mode]?.label||"Révision")+' — '+(session.index+1)+' / '+session.questions.length+'</span>';
 
     if(mode==="flashcards"){
-        const reveal=document.getElementById("reveler-reponse");
-        reveal.onclick=()=>{
-            document.getElementById("reponse-cachee").hidden=false;
-            reveal.textContent="Je connaissais la réponse";
-            reveal.onclick=()=>{session.score++;session.index++;afficherQuestionSession();};
-        };
-    }else if(mode==="qcm"||mode==="paires"||mode==="associer"){
-        el.querySelectorAll(".revision-choice").forEach(button=>button.onclick=()=>enregistrerChoix(button.dataset.answer,bonne));
-    }else if(mode==="relier"){
+        const faceDate=q.type==="date"?'<p class="revision-flashcard-date"><strong>Date / période :</strong> '+escapeHtml(v[0])+'</p>':"";
+        contenu+='<h3>'+escapeHtml(promptQuestion(q))+'</h3>'+faceDate+'<button type="button" class="primary-button" id="reveler-reponse">Afficher la réponse</button><div id="reponse-cachee" class="revision-hidden-answer" hidden>'+escapeHtml(bonne).replace(/\\n/g,"<br>")+'</div>';
+    }else if(mode==="qcm"){
+        contenu+='<h3>'+escapeHtml(promptQuestion(q))+'</h3><div class="revision-mode-choices">'+construireChoix(q).map(x=>'<button type="button" class="secondary-button revision-choice" data-answer="'+escapeHtml(x)+'">'+escapeHtml(x)+'</button>').join("")+'</div>';
+    }else if(mode==="vrai_faux"){
+        const vrai=Math.random()<.5, proposition=vrai?bonne:(construireChoix(q).find(x=>normaliserTexte(x)!==normaliserTexte(bonne))||bonne+" (autre réponse)");
+        session.vraiFaux={proposition,correct:vrai};
+        contenu+='<h3>'+escapeHtml(promptQuestion(q))+'</h3><p class="revision-statement">'+escapeHtml(proposition)+'</p><div class="revision-mode-choices"><button type="button" class="secondary-button" id="vf-vrai">Vrai</button><button type="button" class="secondary-button" id="vf-faux">Faux</button></div>';
+    }else if(mode==="definition_terme"){
+        contenu+='<h3>'+escapeHtml(bonne)+'</h3><p>Quel est le terme correspondant ?</p><input id="reponse-revision" type="text" placeholder="Écris le terme"><button type="button" class="primary-button" id="valider-reponse">Valider</button>';
+    }else if(mode==="terme_definition"){
+        contenu+='<h3>'+escapeHtml(v[0])+'</h3><p>Donne la définition ou l’explication.</p><textarea id="reponse-revision" rows="4" placeholder="Écris ta réponse..."></textarea><button type="button" class="primary-button" id="valider-reponse">Valider</button>';
+    }else if(mode==="texte_trous"){
+        const mots=String(bonne).split(/\s+/).filter(x=>x.length>3),mot=mots[0]||bonne;
+        const motEchappe=String(mot).replace(/[.*+?^{}()|[\]\\]/g,"\\$&");
+        const texte=escapeHtml(bonne).replace(new RegExp(motEchappe,"i"),"____");
+        contenu+='<h3>'+escapeHtml(promptQuestion(q))+'</h3><p class="revision-fill-blank">'+texte+'</p><input id="reponse-revision" type="text" placeholder="Mot manquant"><button type="button" class="primary-button" id="valider-reponse">Valider</button>';
+    }else if(["paires","relier","associer","glisser_deposer"].includes(mode)){
+        const choix=construireChoix(q);
+        session.associationMode=mode;
+        session.associationAnswer=bonne;
+        if(mode==="paires"){
+            contenu+='<h3>Paires</h3><p>Choisis la définition qui correspond à la notion.</p><div class="revision-mode-choices">'+choix.map(x=>'<button type="button" class="secondary-button revision-choice" data-answer="'+escapeHtml(x)+'">'+escapeHtml(x)+'</button>').join("")+'</div>';
+        }else if(mode==="relier"){
+        let selection=null;
         const container=document.getElementById("revision-linking");
         const svg=container?.querySelector(".revision-link-lines");
-        const selected={button:null};
-        const connections=new Set();
-
-        const redraw=()=>{
-            if(!container||!svg)return;
-            svg.innerHTML="";
-            const base=container.getBoundingClientRect();
-
-            connections.forEach(id=>{
-                const left=container.querySelector('.revision-link-left[data-id="'+id+'"]');
-                const right=container.querySelector('.revision-link-right[data-id="'+id+'"]');
-                if(!left||!right)return;
-
-                const a=left.getBoundingClientRect(),b=right.getBoundingClientRect();
-                const line=document.createElementNS("http://www.w3.org/2000/svg","line");
-                line.setAttribute("x1",a.right-base.left);
-                line.setAttribute("y1",a.top+a.height/2-base.top);
-                line.setAttribute("x2",b.left-base.left);
-                line.setAttribute("y2",b.top+b.height/2-base.top);
-                line.setAttribute("class","revision-link-line");
-                svg.appendChild(line);
-            });
+        const relier=[];
+        const tracer=(g,d)=>{
+            const a=g.getBoundingClientRect(),b=d.getBoundingClientRect(),c=container.getBoundingClientRect();
+            const x1=a.right-c.left,y1=a.top+a.height/2-c.top,x2=b.left-c.left,y2=b.top+b.height/2-c.top;
+            const line=document.createElementNS("http://www.w3.org/2000/svg","line");
+            line.setAttribute("x1",x1);line.setAttribute("y1",y1);line.setAttribute("x2",x2);line.setAttribute("y2",y2);line.setAttribute("class","revision-link-line");
+            svg.appendChild(line);
         };
-
-        const choose=(button,side)=>{
+        const choisir=(button,cote)=>{
             if(button.disabled)return;
-
-            if(side==="left"){
-                if(selected.button)selected.button.classList.remove("selected");
-                selected.button=button;
+            if(selection&&selection.cote===cote){
+                selection.button.classList.remove("selected");
+                selection=null;
+                return;
+            }
+            if(cote==="gauche"){
+                if(selection)selection.button.classList.remove("selected");
+                selection={id:button.dataset.id,cote,button};
                 button.classList.add("selected");
                 return;
             }
-
-            if(!selected.button)return;
-
-            const left=selected.button;
-            if(left.dataset.id!==button.dataset.id){
+            if(!selection||selection.cote!=="gauche")return;
+            const gauche=selection.button,id=button.dataset.id;
+            if(selection.id===id){
+                tracer(gauche,button);
+                gauche.disabled=true;button.disabled=true;
+                gauche.classList.remove("selected");
+                relier.push(id);
+                selection=null;
+                const feedback=document.getElementById("feedback-revision");
+                feedback.textContent="Bonne liaison.";
+                feedback.className="revision-feedback success";
+                if(relier.length===session.relier.length){
+                    session.score++;
+                    const suivant=document.createElement("button");
+                    suivant.type="button";suivant.className="primary-button";suivant.textContent="Question suivante";
+                    suivant.onclick=()=>{session.index++;afficherQuestionSession();};
+                    feedback.after(suivant);
+                }
+            }else{
                 const feedback=document.getElementById("feedback-revision");
                 feedback.textContent="Ce n’est pas la bonne paire. Essaie encore.";
                 feedback.className="revision-feedback error";
-                left.classList.remove("selected");
-                selected.button=null;
+                gauche.classList.remove("selected");
+                selection=null;
+            }
+        };
+        el.querySelectorAll(".revision-link-left").forEach(b=>b.onclick=()=>choisir(b,"gauche"));
+        el.querySelectorAll(".revision-link-right").forEach(b=>b.onclick=()=>choisir(b,"droite"));
+    }    }else if(mode==="mots_croises"){
+        const croise=construireMotsCroises(ficheEtude.questions);
+        session.motsCroises=croise;
+        contenu+='<h3>Mots croisés</h3><p>Remplis la grille à partir des définitions.</p>'+rendreMotsCroises(croise)+
+            '<div class="revision-crossword-clues"><div><h4>Indices</h4>'+croise.entries.map(e=>'<p><strong>'+e.number+(e.dir==="across"?" → ":" ↓ ")+'</strong> '+escapeHtml(e.indice)+' <span>('+e.solution.length+' lettres)</span></p>').join("")+'</div></div>'+
+            '<button type="button" class="primary-button" id="verifier-mots-croises">Vérifier la grille</button>';
+    }else if(mode==="mots_meles"){
+        let jeu,signature;
+        do{
+            jeu=construireGrilleMotsMeles(v[0]||bonne,12);
+            signature=jeu.grille.map(r=>r.join("")).join("");
+        }while(signature===session.dernierMotsMeles && session.motsMeles);
+        session.motsMeles=jeu;session.dernierMotsMeles=signature;
+        contenu+='<h3>Mots mêlés</h3><p>Retrouve le mot caché dans la grille 12 × 12.</p><div class="revision-word-grid" aria-label="Grille de mots mêlés">'+
+            jeu.grille.map(ligne=>'<div class="revision-word-grid-row">'+ligne.map((lettre,i)=>'<span data-word-cell="'+escapeHtml(lettre)+'">'+escapeHtml(lettre.toUpperCase())+'</span>').join("")+'</div>').join("")+
+            '</div><input id="reponse-revision" type="text" placeholder="Mot trouvé"><button type="button" class="primary-button" id="valider-reponse">Valider</button>';
+    }else if(mode==="intrus"){
+        const choix=melanger([v[0],...ficheEtude.questions.filter(x=>x!==q).slice(0,3).map(x=>valeurs(x)[0]).filter(Boolean)]),intrus=choix[choix.length-1];
+        session.intrus=intrus;
+        contenu+='<h3>Trouve l’intrus.</h3><p>Choisis la proposition qui est différente.</p><div class="revision-mode-choices">'+choix.map(x=>'<button type="button" class="secondary-button revision-choice" data-answer="'+escapeHtml(x)+'">'+escapeHtml(x)+'</button>').join("")+'</div>';
+    }else{
+        contenu+='<h3>'+escapeHtml(promptQuestion(q))+'</h3><textarea id="reponse-revision" rows="5" placeholder="Écris ta réponse..."></textarea><button type="button" class="primary-button" id="valider-reponse">Valider</button>';
+    }
+
+    cacherToutesLesVues();
+    el.hidden=false;
+    el.innerHTML='<div class="section-heading"><div><span class="section-label">EN COURS</span><h2>'+escapeHtml(ficheEtude.titre)+'</h2></div></div>'+contenu+'<p id="feedback-revision" class="revision-feedback" role="status"></p>';
+
+    if(mode==="flashcards"){
+        const reveal=document.getElementById("reveler-reponse");
+        reveal.onclick=()=>{document.getElementById("reponse-cachee").hidden=false;reveal.textContent="Je connaissais la réponse";reveal.onclick=()=>{session.score++;session.index++;afficherQuestionSession();};};
+    }else if(mode==="qcm"||["paires","associer"].includes(mode)){
+        el.querySelectorAll(".revision-choice").forEach(button=>button.onclick=()=>enregistrerChoix(button.dataset.answer,bonne));
+    }else if(mode==="relier"){
+        let selection=null;
+        const container=document.getElementById("revision-linking");
+        const svg=container?.querySelector(".revision-link-lines");
+        const relier=[];
+        const tracer=(g,d)=>{
+            const a=g.getBoundingClientRect(),b=d.getBoundingClientRect(),c=container.getBoundingClientRect();
+            const x1=a.right-c.left,y1=a.top+a.height/2-c.top,x2=b.left-c.left,y2=b.top+b.height/2-c.top;
+            const line=document.createElementNS("http://www.w3.org/2000/svg","line");
+            line.setAttribute("x1",x1);line.setAttribute("y1",y1);line.setAttribute("x2",x2);line.setAttribute("y2",y2);line.setAttribute("class","revision-link-line");
+            svg.appendChild(line);
+        };
+        const choisir=(button,cote)=>{
+            if(selection&&selection.cote===cote){selection.button.classList.remove("selected");selection=null;return;}
+            if(cote==="gauche"){
+                if(selection)selection.button.classList.remove("selected");
+                selection={id:button.dataset.id,cote,button};
+                button.classList.add("selected");
                 return;
             }
-
-            connections.add(button.dataset.id);
-            left.disabled=true;
-            button.disabled=true;
-            left.classList.remove("selected");
-            selected.button=null;
-            redraw();
-
-            const feedback=document.getElementById("feedback-revision");
-            feedback.textContent="Bonne liaison.";
-            feedback.className="revision-feedback success";
-
-            if(connections.size===session.relier.length){
-                session.score++;
-                const next=document.createElement("button");
-                next.type="button";
-                next.className="primary-button";
-                next.textContent="Question suivante";
-                next.onclick=()=>{session.index++;afficherQuestionSession();};
-                feedback.after(next);
+            if(!selection||selection.cote!=="gauche")return;
+            const gauche=selection.button, id=button.dataset.id;
+            if(selection.id===id){
+                tracer(gauche,button);gauche.disabled=true;button.disabled=true;relier.push(id);
+                gauche.classList.remove("selected");selection=null;
+                if(relier.length===1 && session.relier.length>1) {
+                    // One correct target is enough for this question; the remaining pairs stay as practice.
+                    enregistrerChoix(id,session.relier.find(x=>x.correct)?.id);
+                }
+            }else{
+                const feedback=document.getElementById("feedback-revision");
+                feedback.textContent="Ce n’est pas la bonne paire. Essaie encore.";
+                feedback.className="revision-feedback error";
+                gauche.classList.remove("selected");selection=null;
             }
         };
-
-        el.querySelectorAll(".revision-link-left").forEach(button=>button.onclick=()=>choose(button,"left"));
-        el.querySelectorAll(".revision-link-right").forEach(button=>button.onclick=()=>choose(button,"right"));
-
-        requestAnimationFrame(redraw);
-        const resize=()=>requestAnimationFrame(redraw);
-        window.addEventListener("resize",resize);
-        session.relierCleanup=()=>window.removeEventListener("resize",resize);
+        el.querySelectorAll(".revision-link-left").forEach(b=>b.onclick=()=>choisir(b,"gauche"));
+        el.querySelectorAll(".revision-link-right").forEach(b=>b.onclick=()=>choisir(b,"droite"));
     }else if(mode==="mots_croises"){
         const bouton=document.getElementById("verifier-mots-croises");
-        const inputs=[...el.querySelectorAll(".revision-crossword-cell input")];
-
-        const entreePour=(input,direction)=>{
-            const r=Number(input.dataset.crossRow),c=Number(input.dataset.crossCol);
-            return session.motsCroises.entries.find(entry=>{
-                if(entry.dir!==direction)return false;
-                return Array.from({length:entry.solution.length},(_,i)=>[
-                    entry.row+(entry.dir==="down"?i:0),
-                    entry.col+(entry.dir==="across"?i:0)
-                ]).some(([rr,cc])=>rr===r&&cc===c);
+        bouton.onclick=()=>{
+            let correct=0,total=0;
+            session.motsCroises.entries.forEach(entry=>{
+                for(let i=0;i<entry.solution.length;i++){
+                    const r=entry.row+(entry.dir==="down"?i:0),col=entry.col+(entry.dir==="across"?i:0);
+                    const champ=el.querySelector('[data-cross-row="'+r+'"][data-cross-col="'+col+'"]');
+                    if(!champ)continue;
+                    total++;champ.value=champ.value.toLowerCase();
+                    if(normaliserTexte(champ.value)===entry.solution[i]){correct++;champ.classList.add("correct");}
+                    else if(champ.value){champ.classList.add("incorrect");}
+                }
             });
-        };
-
-        inputs.forEach(input=>{
-            input.addEventListener("input",()=>{
-                input.value=normaliserTexte(input.value).replace(/\s/g,"").slice(-1).toUpperCase();
-                input.classList.remove("incorrect");
-
-                const entry=entreePour(input,"across")||entreePour(input,"down");
-                if(!entry)return;
-
-                const r=Number(input.dataset.crossRow),c=Number(input.dataset.crossCol);
-                const index=entry.dir==="down"?r-entry.row:c-entry.col;
-                inputs.find(x=>
-                    Number(x.dataset.crossRow)===entry.row+(entry.dir==="down"?index+1:0)&&
-                    Number(x.dataset.crossCol)===entry.col+(entry.dir==="across"?index+1:0)
-                )?.focus();
-            });
-
-            input.addEventListener("keydown",event=>{
-                if(event.key!=="Backspace"||input.value)return;
-                event.preventDefault();
-
-                const entry=entreePour(input,"across")||entreePour(input,"down");
-                if(!entry)return;
-
-                const r=Number(input.dataset.crossRow),c=Number(input.dataset.crossCol);
-                const index=entry.dir==="down"?r-entry.row:c-entry.col;
-                inputs.find(x=>
-                    Number(x.dataset.crossRow)===entry.row+(entry.dir==="down"?index-1:0)&&
-                    Number(x.dataset.crossCol)===entry.col+(entry.dir==="across"?index-1:0)
-                )?.focus();
-            });
-        });
-
-        el.querySelectorAll(".revision-crossword-clue").forEach(clue=>{
-            clue.onclick=()=>{
-                const [number,direction]=clue.dataset.crossEntry.split("-");
-                const entry=session.motsCroises.entries.find(x=>String(x.number)===number&&x.dir===direction);
-                inputs.find(x=>Number(x.dataset.crossRow)===entry?.row&&Number(x.dataset.crossCol)===entry?.col)?.focus();
-            };
-        });
-
-        bouton?.addEventListener("click",()=>{
-            let total=0,correct=0;
-
-            session.motsCroises.grid.forEach((row,r)=>{
-                row.forEach((cell,c)=>{
-                    if(!cell)return;
-                    const input=el.querySelector('[data-cross-row="'+r+'"][data-cross-col="'+c+'"]');
-                    if(!input)return;
-
-                    total++;
-                    const value=normaliserTexte(input.value).replace(/\s/g,"");
-                    input.classList.remove("correct","incorrect");
-
-                    if(value===cell.letter){
-                        correct++;
-                        input.classList.add("correct");
-                    }else if(value){
-                        input.classList.add("incorrect");
-                    }
-                });
-            });
-
             const feedback=document.getElementById("feedback-revision");
             if(total&&correct===total){
-                session.score++;
-                feedback.textContent="Grille complète et correcte.";
-                feedback.className="revision-feedback success";
-                bouton.textContent="Question suivante";
-                bouton.onclick=()=>{session.index++;afficherQuestionSession();};
+                session.score++;feedback.textContent="Grille complète et correcte.";feedback.className="revision-feedback success";
+                bouton.textContent="Question suivante";bouton.onclick=()=>{session.index++;afficherQuestionSession();};
             }else{
-                feedback.textContent="Il reste des cases à corriger.";
+                feedback.textContent="Il reste des cases incorrectes. Corrige-les puis vérifie à nouveau.";
                 feedback.className="revision-feedback error";
             }
-        });
+        };
+
     }else if(mode==="glisser_deposer"){
         const zone=document.getElementById("revision-drop-zone");
         el.querySelectorAll(".revision-drag-item").forEach(item=>{
             item.addEventListener("dragstart",event=>event.dataTransfer?.setData("text/plain",item.dataset.answer||""));
             item.addEventListener("click",()=>enregistrerChoix(item.dataset.answer,bonne));
         });
-
         if(zone){
             zone.addEventListener("dragover",event=>event.preventDefault());
             zone.addEventListener("drop",event=>{
                 event.preventDefault();
-                enregistrerChoix(event.dataTransfer?.getData("text/plain")||"",bonne);
+                const reponse=event.dataTransfer?.getData("text/plain")||"";
+                enregistrerChoix(reponse,bonne);
             });
         }
     }else if(mode==="vrai_faux"){
@@ -592,93 +559,31 @@ function afficherQuestionSession(){
         el.querySelectorAll(".revision-choice").forEach(button=>button.onclick=()=>enregistrerChoix(button.dataset.answer,session.intrus));
     }else if(mode==="mots_meles"){
         const bouton=document.getElementById("valider-reponse");
-        const champ=document.getElementById("reponse-revision");
-        const grille=document.getElementById("revision-word-grid");
-        let premier=null;
-        let selection=[];
-
-        const effacerSelection=()=>{
-            selection.forEach(cell=>cell.classList.remove("selected"));
-            selection=[];
-        };
-
-        const surlignerReponse=()=>{
-            const placement=session.motsMeles.placement;
-            if(!placement)return;
-
-            const [r0,c0,r1,c1]=placement;
-            const dr=Math.sign(r1-r0),dc=Math.sign(c1-c0);
-
-            for(let i=0;i<session.motsMeles.mot.length;i++){
-                grille.querySelector('[data-word-row="'+(r0+dr*i)+'"][data-word-col="'+(c0+dc*i)+'"]')?.classList.add("found");
-            }
-        };
-
-        const valider=mot=>{
-            const correct=normaliserTexte(mot).replace(/\s/g,"")===session.motsMeles.mot;
-            const feedback=document.getElementById("feedback-revision");
-
+        bouton.onclick=()=>{
+            const champ=document.getElementById("reponse-revision"),feedback=document.getElementById("feedback-revision");
+            const correct=normaliserTexte(champ.value)===session.motsMeles.mot;
             if(correct){
-                session.score++;
-                champ.value=session.motsMeles.mot.toUpperCase();
-                champ.disabled=true;
-                bouton.textContent="Question suivante";
+                session.score++;champ.disabled=true;bouton.textContent="Question suivante";
+                feedback.textContent="Mot trouvé !";feedback.className="revision-feedback success";
+                const [r0,c0,r1,c1]=session.motsMeles.placement||[];
+                if(session.motsMeles.placement){
+                    const dr=Math.sign(r1-r0),dc=Math.sign(c1-c0),longueur=session.motsMeles.mot.length;
+                    for(let i=0;i<longueur;i++){
+                        const r=r0+dr*i,col=c0+dc*i;
+                        const cell=el.querySelectorAll(".revision-word-grid-row")[r]?.children[col];
+                        if(cell)cell.classList.add("found");
+                    }
+                }
                 bouton.onclick=()=>{session.index++;afficherQuestionSession();};
-                feedback.textContent="Mot trouvé !";
-                feedback.className="revision-feedback success";
-                surlignerReponse();
-                grille.querySelectorAll(".revision-word-cell").forEach(cell=>cell.disabled=true);
             }else{
-                feedback.textContent="Ce n’est pas le bon mot. Cherche encore.";
+                feedback.textContent="Ce n’est pas le bon mot. Cherche encore dans la grille.";
                 feedback.className="revision-feedback error";
             }
         };
-
-        bouton.onclick=()=>valider(champ.value);
-
-        const cellule=(r,c)=>grille.querySelector('[data-word-row="'+r+'"][data-word-col="'+c+'"]');
-
-        grille.querySelectorAll(".revision-word-cell").forEach(cell=>{
-            cell.onclick=()=>{
-                const r=Number(cell.dataset.wordRow),c=Number(cell.dataset.wordCol);
-
-                if(!premier){
-                    premier={r,c};
-                    selection=[cell];
-                    cell.classList.add("selected");
-                    return;
-                }
-
-                const dr=Math.sign(r-premier.r),dc=Math.sign(c-premier.c);
-                const longueur=Math.max(Math.abs(r-premier.r),Math.abs(c-premier.c))+1;
-
-                if(!(dr===0||dc===0||Math.abs(r-premier.r)===Math.abs(c-premier.c))){
-                    effacerSelection();
-                    premier=null;
-                    return;
-                }
-
-                effacerSelection();
-                let mot="";
-                for(let i=0;i<longueur;i++){
-                    const cible=cellule(premier.r+dr*i,premier.c+dc*i);
-                    if(!cible){mot="";break;}
-                    mot+=cible.textContent.toLowerCase();
-                    selection.push(cible);
-                }
-
-                selection.forEach(x=>x.classList.add("selected"));
-                premier=null;
-                if(mot)valider(mot);
-                else effacerSelection();
-            };
-        });
+        document.getElementById("reponse-revision")?.focus();
     }else{
         const bouton=document.getElementById("valider-reponse");
-        if(bouton){
-            bouton.onclick=validerReponse;
-            document.getElementById("reponse-revision")?.focus();
-        }
+        if(bouton){bouton.onclick=validerReponse;const champ=document.getElementById("reponse-revision");if(champ)champ.focus();}
     }
     el.scrollIntoView({behavior:"smooth",block:"start"});
 }
