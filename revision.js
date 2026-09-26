@@ -355,10 +355,7 @@ function construireMotsCroises(questions,size=13){
 }
 function rendreMotsCroises(croise){
     const numeros={};croise.entries.forEach(e=>numeros[e.row+"-"+e.col]=e.number);
-    const lignesOccupees=croise.grid.reduce((acc,row,index)=>{if(row.some(Boolean))acc.push(index);return acc},[]);
-    const premiereLigne=lignesOccupees.length?Math.min(...lignesOccupees):0;
-    const derniereLigne=lignesOccupees.length?Math.max(...lignesOccupees):croise.size-1;
-    const grille='<div class="revision-crossword-wrap"><div class="revision-crossword" style="--cross-size:'+croise.size+'">'+croise.grid.slice(premiereLigne,derniereLigne+1).map((row,r)=>'<div class="revision-crossword-row">'+row.map((cell,col)=>{
+    const grille='<div class="revision-crossword-wrap"><div class="revision-crossword" style="--cross-size:'+croise.size+'">'+croise.grid.map((row,r)=>'<div class="revision-crossword-row">'+row.map((cell,col)=>{
         if(!cell)return '<span class="revision-crossword-cell empty"></span>';
         const n=numeros[r+"-"+col];
         return '<label class="revision-crossword-cell">'+(n?'<small>'+n+'</small>':"")+'<input maxlength="1" autocomplete="off" data-cross-row="'+r+'" data-cross-col="'+col+'"></label>';
