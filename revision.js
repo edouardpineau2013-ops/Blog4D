@@ -443,7 +443,7 @@ function afficherQuestionSession(){
         const mots=String(bonne).split(/\s+/).filter(x=>x.length>3),mot=mots[0]||bonne;
         const motEchappe=String(mot).replace(/[.*+?^{}()|[\]\\]/g,"\\$&");
         const texte=escapeHtml(bonne).replace(new RegExp(motEchappe,"i"),"____");
-        contenu+='<h3>'+escapeHtml(promptQuestion(q))+'</h3><p class="revision-fill-blank">'+texte+'</p><input id="reponse-revision" type="text" placeholder="Mot manquant"><button type="button" class="primary-button" id="valider-reponse">Valider</button>';
+        contenu+='<h3>'+escapeHtml(promptQuestion(q))+'</h3><p class="revision-fill-blank">'+texte+'</p><input id="reponse-revision" type="text" placeholder="Mot manquant" style="margin-top: 20px;"><button type="button" class="primary-button" id="valider-reponse">Valider</button>';
     }else if(["paires","relier","associer","glisser_deposer"].includes(mode)){
         const choix=construireChoix(q);session.associationMode=mode;session.associationAnswer=bonne;
         if(mode==="paires"||mode==="associer"){
