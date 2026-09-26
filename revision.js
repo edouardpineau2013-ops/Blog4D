@@ -488,56 +488,6 @@ function afficherQuestionSession(){
         const croise=construireMotsCroises(ficheEtude.questions,13);session.motsCroises=croise;
         if(!croise.entries.length)contenu+='<h3>Mots croisés</h3><p>Aucune grille croisée compatible n’a pu être générée avec cette fiche.</p>';
         else contenu+='<h3>Mots croisés</h3><p style="margin-bottom: 30px;">Complète les cases avec les indices horizontaux et verticaux.</p>'+rendreMotsCroises(croise)+'<button type="button" class="primary-button" id="verifier-mots-croises">Vérifier la grille</button>';
-    }else if(mode==="lettres_melangees"||mode==="mot_mystere"){
-        const bouton=document.getElementById("valider-reponse");
-        if(bouton)bouton.onclick=validerReponse;
-        document.getElementById("reponse-revision")?.focus();
-    }else if(mode==="phrase_reconstituer"){
-        const resultat=document.getElementById("revision-phrase-result");
-        const mots=[...el.querySelectorAll(".revision-phrase-word")];
-        const ordre=[];
-        const valider=document.getElementById("valider-phrase");
-        const reinitialiser=()=>{
-            ordre.length=0;
-            mots.forEach(button=>{
-                button.disabled=false;
-                button.classList.remove("selected");
-            });
-            if(resultat)resultat.textContent="";
-        };
-        mots.forEach(button=>{
-            button.addEventListener("click",event=>{
-                event.preventDefault();
-                if(button.disabled)return;
-                ordre.push(button.dataset.word||button.textContent.trim());
-                button.disabled=true;
-                button.classList.add("selected");
-                if(resultat)resultat.textContent=ordre.join(" ");
-            });
-        });
-        valider?.addEventListener("click",event=>{
-            event.preventDefault();
-            if(!ordre.length){
-                const feedback=document.getElementById("feedback-revision");
-                feedback.textContent="Sélectionne les mots dans l'ordre avant de valider.";
-                feedback.className="revision-feedback error";
-                return;
-            }
-            const reponse=normaliserTexte(ordre.join(" "));
-            const correct=reponse===session.phraseReponse;
-            const feedback=document.getElementById("feedback-revision");
-            if(correct){
-                feedback.textContent="Bonne réponse. Continue comme ça.";
-                feedback.className="revision-feedback success";
-                marquerQuestionReussie();
-                valider.textContent="Question suivante";
-                valider.onclick=()=>{session.index++;afficherQuestionSession();};
-            }else{
-                feedback.textContent="La phrase n'est pas dans le bon ordre. Recommence.";
-                feedback.className="revision-feedback error";
-                reinitialiser();
-            }
-        });
     }else if(mode==="mots_meles"){
         const mot=motPourMotsMeles(q);
         const grille=construireGrilleMotsMeles(mot);
