@@ -260,7 +260,18 @@ function lancerRevision() {
         return;
     }
 
-    session = {questions:melanger(ficheEtude.questions).slice(0,nombre), modes:modes, index:0, score:0};
+    const questions = melanger(ficheEtude.questions).slice(0, nombre);
+    session = {
+        questions,
+        modes,
+        index: 0,
+        score: 0,
+        modesParQuestion: questions.map(q => {
+            const compatibles = modes.filter(mode => MODES_REVISION[mode].types.includes(q.type));
+            const disponibles = compatibles.length ? compatibles : Object.keys(MODES_REVISION).filter(mode => MODES_REVISION[mode].types.includes(q.type));
+            return disponibles[Math.floor(Math.random() * disponibles.length)];
+        })
+    };
     afficherQuestionSession();
 }
 
@@ -269,7 +280,7 @@ function afficherQuestionSession() {
     const q = session.questions[session.index];
     if (!q) return afficherResultatRevision();
 
-    const mode = session.modes[session.index % session.modes.length];
+    const mode = session.modesParQuestion[session.index];
     const v = valeurs(q);
     let html = "";
 
@@ -325,7 +336,18 @@ function afficherResultatRevision() {
     const el = document.getElementById("revision-session");
     el.innerHTML = '<div class="revision-result"><span class="section-label">RÉSULTAT</span><h2>' + pct + '%</h2><p class="revision-score">' + session.score + ' / ' + total + '</p><p>' + commentaire + '</p><button type="button" class="primary-button" id="recommencer-revision">Recommencer</button> <button type="button" class="secondary-button" id="retour-fiches">Retour aux fiches</button></div>';
     document.getElementById("recommencer-revision").onclick = () => {
-        session = {questions:melanger(ficheEtude.questions).slice(0,total), modes:session.modes, index:0, score:0};
+        const questions = melanger(ficheEtude.questions).slice(0, total);
+        session = {
+            questions,
+            modes: session.modes,
+            index: 0,
+            score: 0,
+            modesParQuestion: questions.map(q => {
+                const compatibles = session.modes.filter(mode => MODES_REVISION[mode].types.includes(q.type));
+                const disponibles = compatibles.length ? compatibles : Object.keys(MODES_REVISION).filter(mode => MODES_REVISION[mode].types.includes(q.type));
+                return disponibles[Math.floor(Math.random() * disponibles.length)];
+            })
+        };
         afficherQuestionSession();
     };
     document.getElementById("retour-fiches").onclick = () => {
