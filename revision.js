@@ -155,7 +155,7 @@ function afficherConfigurationRevision(fiche){
     }
     ficheEtude={...fiche,questions};
     const config=document.getElementById("revision-config");
-    const modes=modesDisponibles(questions);
+    const typesDisponibles=new Set(questions.map(q=>q.type));
     config.innerHTML=
         '<div class="section-heading"><div><span class="section-label">RÉVISER</span><h2>'+escapeHtml(fiche.titre)+'</h2></div>'+
         '<button type="button" class="secondary-button" id="fermer-config">Fermer</button></div>'+
@@ -163,7 +163,10 @@ function afficherConfigurationRevision(fiche){
         '<div class="revision-config-grid">'+
         '<div class="revision-config-block"><label for="nombre-a-reviser">Nombre de questions</label><input id="nombre-a-reviser" type="number" min="1" max="'+questions.length+'" value="'+Math.min(questions.length,10)+'"><small>Maximum : '+questions.length+'</small></div>'+
         '<div class="revision-config-block"><span class="revision-config-label">Modes de révision</span><div class="revision-mode-list">'+
-        modes.map(([key,mode])=>'<label class="revision-mode-option"><input type="checkbox" name="revision-mode" value="'+key+'" checked><span>'+escapeHtml(mode.label)+'</span></label>').join("")+
+        Object.entries(MODES_REVISION).map(([key,mode])=>{
+            const compatible=mode.types.some(type=>typesDisponibles.has(type));
+            return '<label class="revision-mode-option'+(compatible?'':' is-disabled')+'"><input type="checkbox" name="revision-mode" value="'+key+'" '+(compatible?'checked':'disabled')+'><span>'+escapeHtml(mode.label)+'</span></label>';
+        }).join("")+
         '</div></div></div>'+
         '<button type="button" class="primary-button" id="lancer-revision">Commencer la révision</button>'+
         '<p id="revision-config-status" class="revision-status" role="status"></p>';
@@ -206,22 +209,30 @@ function lancerRevision(){
     session={questions,modes,index:0,score:0,modesParQuestion:questions.map(q=>{
         const compatibles=modes.filter(mode=>MODES_REVISION[mode]?.types.includes(q.type));
         const disponibles=compatibles.length?compatibles:Object.keys(MODES_REVISION).filter(mode=>MODES_REVISION[mode].types.includes(q.type));
-        return disponibles[Math.floor(Math.random()*disponibles.length)];
+        return disponibles.length ? disponibles[Math.floor(Math.random()*disponibles.length)] : "questions";
     })};
     afficherQuestionSession();
 }
 
 function construireChoix(q){
-    const bonne=valeurs(q)[1]||"";
-    const autres=ficheEtude.questions.filter(x=>x!==q).map(x=>valeurs(x)[1]).filter(Boolean);
-    return melanger([bonne,...melanger([...new Set(autres)]).slice(0,3)]);
+    const bonne=String(valeurs(q)[1]||"").trim();
+    const autres=ficheEtude.questions
+        .filter(x=>x!==q)
+        .map(x=>String(valeurs(x)[1]||"").trim())
+        .filter(Boolean)
+        .filter(x=>normaliserTexte(x)!==normaliserTexte(bonne));
+    const uniques=[...new Map(autres.map(x=>[normaliserTexte(x),x])).values()];
+    const choix=melanger([bonne,...melanger(uniques).slice(0,3)]).filter(Boolean);
+    return choix.length ? choix : [bonne || "Aucune réponse disponible"];
 }
 
 function melangerLettres(texte){
-    const lettres=[...normaliserTexte(texte).replace(/\\s/g,"")];
-    if(lettres.length<2)return texte;
-    let resultat=lettres.join("");
-    for(let i=0;i<10&&normaliserTexte(resultat)===normaliserTexte(texte);i++)resultat=melanger(lettres).join("");
+    const source=normaliserTexte(texte).replace(/\s/g,"");
+    const lettres=[...source];
+    if(lettres.length<2)return source;
+    let resultat=source;
+    for(let i=0;i<30&&resultat===source;i++)resultat=melanger(lettres).join("");
+    if(resultat===source) resultat=lettres.slice(1).concat(lettres[0]).join("");
     return resultat;
 }
 
@@ -250,7 +261,7 @@ function afficherQuestionSession(){
     }else if(mode==="qcm"){
         contenu+='<h3>'+escapeHtml(promptQuestion(q))+'</h3><div class="revision-mode-choices">'+construireChoix(q).map(x=>'<button type="button" class="secondary-button revision-choice" data-answer="'+escapeHtml(x)+'">'+escapeHtml(x)+'</button>').join("")+'</div>';
     }else if(mode==="vrai_faux"){
-        const vrai=Math.random()<.5, proposition=vrai?bonne:(construireChoix(q).find(x=>x!==bonne)||bonne+" (autre réponse)");
+        const vrai=Math.random()<.5, proposition=vrai?bonne:(construireChoix(q).find(x=>normaliserTexte(x)!==normaliserTexte(bonne))||bonne+" (autre réponse)");
         session.vraiFaux={proposition,correct:vrai};
         contenu+='<h3>'+escapeHtml(promptQuestion(q))+'</h3><p class="revision-statement">'+escapeHtml(proposition)+'</p><div class="revision-mode-choices"><button type="button" class="secondary-button" id="vf-vrai">Vrai</button><button type="button" class="secondary-button" id="vf-faux">Faux</button></div>';
     }else if(mode==="definition_terme"){
@@ -262,7 +273,18 @@ function afficherQuestionSession(){
         const texte=escapeHtml(bonne).replace(new RegExp(escapeHtml(mot),"i"),"____");
         contenu+='<h3>'+escapeHtml(promptQuestion(q))+'</h3><p class="revision-fill-blank">'+texte+'</p><input id="reponse-revision" type="text" placeholder="Mot manquant"><button type="button" class="primary-button" id="valider-reponse">Valider</button>';
     }else if(["paires","relier","associer","glisser_deposer"].includes(mode)){
-        contenu+='<h3>'+escapeHtml(v[0])+'</h3><p>Associe la notion à la bonne réponse.</p><div class="revision-mode-choices">'+construireChoix(q).map(x=>'<button type="button" class="secondary-button revision-choice" data-answer="'+escapeHtml(x)+'">'+escapeHtml(x)+'</button>').join("")+'</div>';
+        const choix=construireChoix(q);
+        session.associationMode=mode;
+        session.associationAnswer=bonne;
+        if(mode==="paires"){
+            contenu+='<h3>Paires</h3><p>Choisis la définition qui correspond à la notion.</p><div class="revision-mode-choices">'+choix.map(x=>'<button type="button" class="secondary-button revision-choice" data-answer="'+escapeHtml(x)+'">'+escapeHtml(x)+'</button>').join("")+'</div>';
+        }else if(mode==="relier"){
+            contenu+='<h3>Relier</h3><p>Relie mentalement la notion à sa réponse, puis choisis la bonne réponse.</p><p class="revision-statement">'+escapeHtml(v[0])+'</p><div class="revision-mode-choices">'+choix.map(x=>'<button type="button" class="secondary-button revision-choice" data-answer="'+escapeHtml(x)+'">'+escapeHtml(x)+'</button>').join("")+'</div>';
+        }else if(mode==="associer"){
+            contenu+='<h3>Associer</h3><p>Associe cet élément à la bonne information.</p><p class="revision-statement">'+escapeHtml(v[0])+'</p><div class="revision-mode-choices">'+choix.map(x=>'<button type="button" class="secondary-button revision-choice" data-answer="'+escapeHtml(x)+'">'+escapeHtml(x)+'</button>').join("")+'</div>';
+        }else{
+            contenu+='<h3>Glisser-déposer</h3><p>Choisis l’étiquette à placer avec cet élément.</p><p class="revision-statement">'+escapeHtml(v[0])+'</p><div class="revision-mode-choices">'+choix.map(x=>'<button type="button" class="secondary-button revision-choice" draggable="true" data-answer="'+escapeHtml(x)+'">'+escapeHtml(x)+'</button>').join("")+'</div>';
+        }
     }else if(mode==="anagramme"||mode==="lettres_melangees"){
         contenu+='<h3>'+escapeHtml(mode==="anagramme"?"Remets les lettres dans le bon ordre.":"Retrouve le mot.")+'</h3><p class="revision-letter-game">'+escapeHtml(melangerLettres(v[0]||bonne))+'</p><input id="reponse-revision" type="text" placeholder="Ta réponse"><button type="button" class="primary-button" id="valider-reponse">Valider</button>';
     }else if(mode==="mot_mystere"){
@@ -276,7 +298,7 @@ function afficherQuestionSession(){
     }else if(mode==="mots_croises"){
         contenu+='<h3>Mots croisés</h3><p>Retrouve le terme correspondant à cette définition.</p><p class="revision-statement">'+escapeHtml(bonne||promptQuestion(q))+'</p><input id="reponse-revision" type="text" placeholder="Écris le terme"><button type="button" class="primary-button" id="valider-reponse">Valider</button>';
     }else if(mode==="mots_meles"){
-        const lettres=[...normaliserTexte(v[0]||bonne).replace(/\\s/g,"")],bruit=melanger("abcdefghijklmnopqrstuvwxyz".split("")).slice(0,Math.min(10,Math.max(4,lettres.length))),grille=melanger([...lettres,...bruit]).join(" ");
+        const lettres=[...normaliserTexte(v[0]||bonne).replace(/\s/g,"")],bruit=melanger("abcdefghijklmnopqrstuvwxyz".split("")).slice(0,Math.min(10,Math.max(4,lettres.length))),grille=melanger([...lettres,...bruit]).join(" ");
         contenu+='<h3>Mots mêlés</h3><p>Retrouve le mot caché dans les lettres.</p><p class="revision-letter-game">'+escapeHtml(grille)+'</p><input id="reponse-revision" type="text" placeholder="Mot trouvé"><button type="button" class="primary-button" id="valider-reponse">Valider</button>';
     }else if(mode==="intrus"){
         const choix=melanger([v[0],...ficheEtude.questions.filter(x=>x!==q).slice(0,3).map(x=>valeurs(x)[0]).filter(Boolean)]),intrus=choix[choix.length-1];
