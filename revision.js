@@ -460,7 +460,7 @@ function afficherQuestionSession(){
         const phrase=String(v[1]||"").trim();
         session.phraseReponse=normaliserTexte(phrase);
         const mots=phraseMelangee(phrase);
-        contenu+='<h3>Phrase à reconstituer</h3><p>'+escapeHtml(promptQuestion(q))+'</p><div class="revision-phrase-words">'+mots.map((mot,i)=>'<button type="button" class="revision-phrase-word" data-index="'+i+'">'+escapeHtml(mot)+'</button>').join("")+'</div><div id="revision-phrase-result" class="revision-phrase-result"></div><button type="button" class="primary-button" id="valider-phrase">Valider</button>';
+        contenu+='<h3>Phrase à reconstituer</h3><p>'+escapeHtml(promptQuestion(q))+'</p><div class="revision-phrase-words">'+mots.map((mot,i)=>'<button type="button" class="revision-phrase-word" data-index="'+i+'" data-word="'+escapeHtml(mot)+'">'+escapeHtml(mot)+'</button>').join("")+'</div><div id="revision-phrase-result" class="revision-phrase-result">Clique sur les mots dans le bon ordre.</div><div class="revision-phrase-actions"><button type="button" class="secondary-button" id="reinitialiser-phrase">Réinitialiser</button><button type="button" class="primary-button" id="valider-phrase">Valider</button></div>';
     }else if(mode==="mots_croises"){
         const croise=construireMotsCroises(ficheEtude.questions,13);session.motsCroises=croise;
         if(!croise.entries.length)contenu+='<h3>Mots croisés</h3><p>Aucune grille croisée compatible n’a pu être générée avec cette fiche.</p>';
@@ -473,29 +473,48 @@ function afficherQuestionSession(){
         const resultat=document.getElementById("revision-phrase-result");
         const mots=[...el.querySelectorAll(".revision-phrase-word")];
         const ordre=[];
-        mots.forEach(button=>button.onclick=()=>{
-            if(button.disabled)return;
-            ordre.push(button.textContent);
-            button.disabled=true;
-            button.classList.add("selected");
-            resultat.textContent=ordre.join(" ");
+        const valider=document.getElementById("valider-phrase");
+        const reinitialiser=()=>{
+            ordre.length=0;
+            mots.forEach(button=>{
+                button.disabled=false;
+                button.classList.remove("selected");
+            });
+            if(resultat)resultat.textContent="";
+        };
+        mots.forEach(button=>{
+            button.addEventListener("click",event=>{
+                event.preventDefault();
+                if(button.disabled)return;
+                ordre.push(button.dataset.word||button.textContent.trim());
+                button.disabled=true;
+                button.classList.add("selected");
+                if(resultat)resultat.textContent=ordre.join(" ");
+            });
         });
-        document.getElementById("valider-phrase").onclick=()=>{
+        valider?.addEventListener("click",event=>{
+            event.preventDefault();
+            if(!ordre.length){
+                const feedback=document.getElementById("feedback-revision");
+                feedback.textContent="Sélectionne les mots dans l'ordre avant de valider.";
+                feedback.className="revision-feedback error";
+                return;
+            }
             const reponse=normaliserTexte(ordre.join(" "));
             const correct=reponse===session.phraseReponse;
             const feedback=document.getElementById("feedback-revision");
-            feedback.textContent=correct?"Bonne réponse. Continue comme ça.":"La phrase n'est pas dans le bon ordre.";
-            feedback.className="revision-feedback "+(correct?"success":"error");
             if(correct){
+                feedback.textContent="Bonne réponse. Continue comme ça.";
+                feedback.className="revision-feedback success";
                 marquerQuestionReussie();
-                document.getElementById("valider-phrase").textContent="Question suivante";
-                document.getElementById("valider-phrase").onclick=()=>{session.index++;afficherQuestionSession();};
+                valider.textContent="Question suivante";
+                valider.onclick=()=>{session.index++;afficherQuestionSession();};
             }else{
-                mots.forEach(button=>{button.disabled=false;button.classList.remove("selected");});
-                ordre.length=0;
-                resultat.textContent="";
+                feedback.textContent="La phrase n'est pas dans le bon ordre. Recommence.";
+                feedback.className="revision-feedback error";
+                reinitialiser();
             }
-        };
+        });
     }else if(mode==="mots_meles"){
         let jeu,signature,essais=0;
         do{jeu=construireGrilleMotsMeles(motPourMotsMeles(q),12);signature=jeu.grille.map(row=>row.join("")).join("");essais++;}while(signature===session.dernierMotsMeles&&essais<10);
@@ -598,7 +617,24 @@ function afficherQuestionSession(){
                 }
             });
         });
-        el.querySelectorAll(".revision-crossword-clue").forEach(clue=>clue.onclick=()=>{
+        if(mode==="phrase_reconstituer"){
+        const reset=document.getElementById("reinitialiser-phrase");
+        reset?.addEventListener("click",event=>{
+            event.preventDefault();
+            el.querySelectorAll(".revision-phrase-word").forEach(button=>{
+                button.disabled=false;
+                button.classList.remove("selected");
+            });
+            const resultat=document.getElementById("revision-phrase-result");
+            if(resultat)resultat.textContent="Clique sur les mots dans le bon ordre.";
+            const feedback=document.getElementById("feedback-revision");
+            if(feedback){
+                feedback.textContent="";
+                feedback.className="revision-feedback";
+            }
+        });
+    }
+    el.querySelectorAll(".revision-crossword-clue").forEach(clue=>clue.onclick=()=>{
             const [number,direction]=clue.dataset.crossEntry.split("-");
             const entry=session.motsCroises.entries.find(x=>String(x.number)===number&&x.dir===direction);
             if(!entry)return;
