@@ -28,14 +28,13 @@
 <a href="contact.html" class="nav-link">Me contacter</a>
 <a href="connexion.html" class="nav-link" id="account-link">Se connecter</a>
 </div></nav>
+
 <main>
 <section class="section-card revision-home" id="revision-accueil">
 <div class="section-heading"><div><span class="section-label">RÉVISION</span><h2>Mes fiches de révision</h2></div><span class="section-number">04</span></div>
-<p class="revision-intro">Crée une fiche, ajoute autant de questions que nécessaire, puis valide-la pour la retrouver ici.</p>
+<p class="revision-intro">Crée une fiche, ajoute autant de questions que nécessaire, puis révise-la avec plusieurs modes.</p>
 <button id="ouvrir-createur" class="primary-button" type="button">Créer une fiche de révision</button>
 <div id="liste-fiches" class="revision-fiches-grid"></div>
-<div id="revision-config" class="revision-study-config" hidden></div>
-<div id="revision-session" class="revision-study-session" hidden></div>
 </section>
 
 <section class="section-card revision-editor" id="revision-editor" hidden>
@@ -51,7 +50,11 @@
 <p id="revision-status" class="revision-status" role="status" aria-live="polite"></p>
 </form>
 </section>
+
+<section class="section-card revision-study-config" id="revision-config" hidden></section>
+<section class="section-card revision-study-session" id="revision-session" hidden></section>
 </main>
+
 <footer><div class="footer-content"><div><strong>Blog des 4D</strong><p>La vie de la classe, au même endroit.</p></div><div class="footer-right"><span>© 2026</span><span>•</span><span>4èmes D</span></div></div></footer>
 <button id="back-to-top" class="back-to-top" type="button" aria-label="Retour en haut">↑</button>
 </body>
