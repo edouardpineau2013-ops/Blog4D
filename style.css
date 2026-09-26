@@ -975,7 +975,7 @@ footer{padding:35px 20px;background:var(--primary);color:white}.footer-content{m
     outline:0;
     background:transparent;
     text-align:center;
-    font:800 1rem/1 inherit;
+    font:800 1rem/2rem inherit;
     text-transform:uppercase;
 }
 .revision-crossword-cell input:focus{
@@ -1065,7 +1065,7 @@ footer{padding:35px 20px;background:var(--primary);color:white}.footer-content{m
     .revision-linking{gap:16px;}
     .revision-crossword-row{grid-template-columns:repeat(var(--cross-size),1.8rem);}
     .revision-crossword-cell{width:1.8rem;height:1.8rem;}
-    .revision-crossword-cell input{font-size:.9rem;}
+    .revision-crossword-cell input{font-size:.9rem;line-height:1.8rem;}
     .revision-word-grid{max-width:100%;overflow:auto;}
     .revision-word-grid-row{grid-template-columns:repeat(12,1.85rem);}
     .revision-word-cell{width:1.85rem;height:1.85rem;font-size:.85rem;}
@@ -1076,7 +1076,7 @@ footer{padding:35px 20px;background:var(--primary);color:white}.footer-content{m
     .revision-link-item{min-height:46px;padding:9px 7px;font-size:.9rem;}
     .revision-crossword-row{grid-template-columns:repeat(var(--cross-size),1.65rem);}
     .revision-crossword-cell{width:1.65rem;height:1.65rem;}
-    .revision-crossword-cell input{font-size:.78rem;}
+    .revision-crossword-cell input{font-size:.78rem;line-height:1.65rem;}
     .revision-word-grid-row{grid-template-columns:repeat(12,1.65rem);gap:2px;}
     .revision-word-cell{width:1.65rem;height:1.65rem;font-size:.76rem;}
 }
