@@ -459,83 +459,13 @@ function afficherQuestionSession(){
         if(mode==="paires"){
             contenu+='<h3>'+escapeHtml(MODES_REVISION[mode].label)+'</h3><h4>'+escapeHtml(promptQuestion(q))+'</h4><p>Choisis la bonne réponse.</p><div class="revision-mode-choices">'+choix.map(x=>'<button type="button" class="secondary-button revision-choice" data-answer="'+escapeHtml(x)+'">'+escapeHtml(x)+'</button>').join("")+'</div>';
         }else if(mode==="puzzle"){
-        const pieces=[...el.querySelectorAll(".revision-puzzle-piece")];
-        const slots=[...el.querySelectorAll(".revision-puzzle-slot")];
-        const selected={piece:null};
-        const feedback=document.getElementById("feedback-revision");
-        const terminer=()=>{
-            if(session.puzzle.paires.length!==3)return;
-            marquerQuestionReussie();
-            feedback.textContent="Puzzle terminé !";
-            feedback.className="revision-feedback success";
-            const next=document.createElement("button");
-            next.type="button";next.className="primary-button";next.textContent="Question suivante";
-            next.onclick=()=>{session.index++;afficherQuestionSession();};
-            feedback.after(next);
-        };
-        const assembler=(pieceA,pieceB,slot)=>{
-            if(!pieceA||!pieceB||pieceA===pieceB||pieceA.dataset.cote===pieceB.dataset.cote)return false;
-            if(pieceA.dataset.pair!==pieceB.dataset.pair){
-                feedback.textContent="Ces deux pièces ne vont pas ensemble. Recommence.";
-                feedback.className="revision-feedback error";
-                pieceA.classList.remove("selected");pieceB.classList.remove("selected");
-                return false;
-            }
-            const pair=Number(pieceA.dataset.pair);
-            if(session.puzzle.paires.some(x=>x.pair===pair)||!slot)return false;
-            const content=slot.querySelector(".revision-puzzle-slot-content");
-            content.innerHTML="";
-            [pieceA,pieceB].forEach(piece=>{piece.classList.remove("selected");piece.classList.add("assembled");piece.draggable=false;content.appendChild(piece);});
-            slot.classList.add("complete");
-            session.puzzle.paires.push({pair});
-            feedback.textContent="Bonne paire !";
-            feedback.className="revision-feedback success";
-            terminer();
-            return true;
-        };
-        pieces.forEach(piece=>{
-            piece.addEventListener("dragstart",event=>{
-                selected.piece=piece;
-                event.dataTransfer.setData("text/plain",piece.dataset.pieceId);
-                event.dataTransfer.effectAllowed="move";
-                piece.classList.add("dragging");
-            });
-            piece.addEventListener("dragend",()=>piece.classList.remove("dragging"));
-            piece.addEventListener("dragover",event=>{if(!piece.classList.contains("assembled"))event.preventDefault();});
-            piece.addEventListener("drop",event=>{
-                event.preventDefault();
-                const id=event.dataTransfer.getData("text/plain");
-                const source=pieces.find(x=>x.dataset.pieceId===id);
-                if(!source||source===piece||piece.classList.contains("assembled"))return;
-                assembler(source,piece,slots.find(x=>!x.classList.contains("complete")));
-                selected.piece=null;
-            });
-            piece.addEventListener("click",()=>{
-                if(piece.classList.contains("assembled"))return;
-                if(!selected.piece){selected.piece=piece;piece.classList.add("selected");return;}
-                if(selected.piece===piece){piece.classList.remove("selected");selected.piece=null;return;}
-                assembler(selected.piece,piece,slots.find(x=>!x.classList.contains("complete")));
-                selected.piece=null;
-            });
-        });
-        slots.forEach(slot=>{
-            slot.addEventListener("dragover",event=>{
-                if(!slot.classList.contains("complete")){event.preventDefault();slot.classList.add("drag-over");}
-            });
-            slot.addEventListener("dragleave",()=>slot.classList.remove("drag-over"));
-        });
-    }else if(mode==="relier"){
-            const sources=melanger([q,...ficheEtude.questions.filter(x=>x!==q)]).slice(0,Math.min(4,ficheEtude.questions.length));
-            const liens=sources.map((x,i)=>({id:"relier-"+i,gauche:valeurs(x)[0],droite:valeurs(x)[1]}));session.relier=liens;
-            contenu+='<h3>Relier</h3><p>Clique sur un élément à gauche puis sur sa réponse à droite pour créer un trait.</p><div class="revision-linking" id="revision-linking"><svg class="revision-link-lines" aria-hidden="true"></svg><div class="revision-link-column">'+liens.map(x=>'<button type="button" class="revision-link-item revision-link-left" data-id="'+x.id+'">'+escapeHtml(x.gauche)+'</button>').join("")+'</div><div class="revision-link-column">'+melanger(liens).map(x=>'<button type="button" class="revision-link-item revision-link-right" data-id="'+x.id+'">'+escapeHtml(x.droite)+'</button>').join("")+'</div></div>';
-        }else{
-            contenu+='<h3>Glisser-déposer</h3><h4>'+escapeHtml(promptQuestion(q))+'</h4><p>Glisse la bonne réponse dans la zone ou clique dessus.</p><div class="revision-drag-options">'+choix.map(x=>'<button type="button" draggable="true" class="secondary-button revision-choice revision-drag-item" data-answer="'+escapeHtml(x)+'">'+escapeHtml(x)+'</button>').join("")+'</div><div id="revision-drop-zone" class="revision-drop-zone" tabindex="0">Dépose la réponse ici</div>';
-        }
-    }else if(mode==="puzzle"){
-        const gauche=decouperEnTrois(v[0]),droite=decouperEnTrois(v[1]);
-        const pieces=melanger([...gauche.map((texte,i)=>({id:"g-"+i,pair:i,cote:"gauche",texte})),...droite.map((texte,i)=>({id:"d-"+i,pair:i,cote:"droite",texte}))]);
-        session.puzzle={pieces,paires:[]};
-        contenu+='<h3>Puzzle</h3><p>Déplace les pièces et assemble les 3 bonnes paires.</p><div class="revision-puzzle-board"><div class="revision-puzzle-pieces" id="revision-puzzle-pieces">'+pieces.map(piece=>'<button type="button" draggable="true" class="revision-puzzle-piece" data-piece-id="'+piece.id+'" data-pair="'+piece.pair+'" data-cote="'+piece.cote+'">'+escapeHtml(piece.texte||"—")+'</button>').join("")+'</div><div class="revision-puzzle-pairs" id="revision-puzzle-pairs">'+[0,1,2].map(i=>'<div class="revision-puzzle-slot" data-slot="'+i+'"><span>Paire '+(i+1)+'</span><div class="revision-puzzle-slot-content">Dépose deux pièces ici</div></div>').join("")+'</div></div>';
+        const candidats=melanger(ficheEtude.questions.filter(x=>x&&valeurs(x)[0]&&valeurs(x)[1]));
+        const groupe=[];
+        for(const item of [q,...candidats]){if(!groupe.includes(item))groupe.push(item);if(groupe.length===3)break;}
+        const paires=groupe.map((item,i)=>({id:"puzzle-"+i,pair:i,gauche:String(valeurs(item)[0]||""),droite:String(valeurs(item)[1]||"")}));
+        const pieces=melanger([...paires.map(x=>({id:x.id+"-g",pair:x.pair,cote:"gauche",texte:x.gauche})),...paires.map(x=>({id:x.id+"-d",pair:x.pair,cote:"droite",texte:x.droite}))]);
+        session.puzzle={paires,trouvees:[]};
+        contenu+='<h3>Puzzle</h3><p>Déplace les pièces pour assembler les 3 bonnes paires.</p><div class="revision-puzzle-pieces" id="revision-puzzle-pieces">'+pieces.map(piece=>'<button type="button" draggable="true" class="revision-puzzle-piece" data-piece-id="'+piece.id+'" data-pair="'+piece.pair+'" data-cote="'+piece.cote+'">'+escapeHtml(piece.texte||"—")+'</button>').join("")+'</div><div class="revision-puzzle-pairs" id="revision-puzzle-pairs"><div class="revision-puzzle-slot" id="revision-puzzle-slot"><span>Paires assemblées</span><div class="revision-puzzle-slot-content"></div></div></div>';
     }else if(mode==="lettres_melangees"){
         const solution=String(v[0]||"").trim();
         const melange=melangerLettres(solution);
