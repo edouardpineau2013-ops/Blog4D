@@ -260,61 +260,73 @@ function extraireMotCroise(q){
 function peutPlacerCroise(grille,word,row,col,dir){
     const n=grille.length,dr=dir==="down"?1:0,dc=dir==="across"?1:0;
     const finR=row+dr*(word.length-1),finC=col+dc*(word.length-1);
-    if(row<0||col<0||finR>=n||finC>=n)return false;
+    if(row<0||col<0||finR>=n||finC>=n)return 0;
+
     const avantR=row-dr,avantC=col-dc,apresR=finR+dr,apresC=finC+dc;
-    if(avantR>=0&&avantR<n&&avantC>=0&&avantC<n&&grille[avantR][avantC])return false;
-    if(apresR>=0&&apresR<n&&apresC>=0&&apresC<n&&grille[apresR][apresC])return false;
+    if(avantR>=0&&avantR<n&&avantC>=0&&avantC<n&&grille[avantR][avantC])return 0;
+    if(apresR>=0&&apresR<n&&apresC>=0&&apresC<n&&grille[apresR][apresC])return 0;
+
     let intersections=0;
     for(let i=0;i<word.length;i++){
         const r=row+dr*i,cc=col+dc*i,cell=grille[r][cc];
-        if(cell&&cell.letter!==word[i])return false;
+        if(cell&&cell.letter!==word[i])return 0;
         if(cell)intersections++;
-        const voisins=dir==="across" ? [[r-1,cc],[r+1,cc]] : [[r,cc-1],[r,cc+1]];
+        const voisins=dir==="across"?[[r-1,cc],[r+1,cc]]:[[r,cc-1],[r,cc+1]];
         for(const [vr,vc] of voisins){
-            if(vr>=0&&vr<n&&vc>=0&&vc<n&&grille[vr][vc]&&!cell)return false;
+            if(vr>=0&&vr<n&&vc>=0&&vc<n&&grille[vr][vc]&&!cell)return 0;
         }
     }
     return intersections;
 }
 
-function construireMotsCroises(questions,size=15){
+function construireMotsCroises(questions,size=13){
     const candidats=questions.map(extraireMotCroise).filter(Boolean);
-    if(!candidats.length)return {size,grid:Array.from({length:size},()=>Array(size).fill(null)),entries:[]};
-    const uniques=[...new Map(candidats.map(x=>[x.solution,x])).values()].sort((a,b)=>b.solution.length-a.solution.length).slice(0,8);
+    const uniques=[...new Map(candidats.map(x=>[x.solution,x])).values()]
+        .sort((a,b)=>b.solution.length-a.solution.length).slice(0,7);
+
     const grid=Array.from({length:size},()=>Array(size).fill(null));
     const entries=[];
+    if(!uniques.length)return {size,grid,entries};
+
     const premier=uniques.shift();
-    const ligne=Math.floor(size/2),col=Math.max(0,Math.floor((size-premier.solution.length)/2));
-    for(let i=0;i<premier.solution.length;i++)grid[ligne][col+i]={letter:premier.solution[i]};
-    entries.push({number:1,...premier,row:ligne,col,dir:"across"});
-    let prochainNumero=2;
+    const row=Math.floor(size/2);
+    const col=Math.floor((size-premier.solution.length)/2);
+    for(let i=0;i<premier.solution.length;i++)grid[row][col+i]={letter:premier.solution[i]};
+    entries.push({number:0,...premier,row,col,dir:"across"});
+
     for(const word of uniques){
         let meilleur=null;
         for(let i=0;i<word.solution.length;i++){
-            for(let r=0;r<size;r++)for(let cc=0;cc<size;cc++){
-                const cell=grid[r][cc];
-                if(!cell||cell.letter!==word.solution[i])continue;
-                const dir=entries.some(e=>e.row===r&&e.col<=cc&&e.dir==="across")?"down":"across";
-                const dr=dir==="down"?1:0,dc=dir==="across"?1:0;
-                const rr=r-dr*i,ccc=cc-dc*i;
-                const intersections=peutPlacerCroise(grid,word.solution,rr,ccc,dir);
-                if(intersections>0&&(!meilleur||intersections>meilleur.intersections))meilleur={row:rr,col:ccc,dir,intersections};
+            for(let r=0;r<size;r++){
+                for(let cc=0;cc<size;cc++){
+                    const cell=grid[r][cc];
+                    if(!cell||cell.letter!==word.solution[i])continue;
+                    for(const dir of ["down","across"]){
+                        const dr=dir==="down"?1:0,dc=dir==="across"?1:0;
+                        const rr=r-dr*i,ccc=cc-dc*i;
+                        const intersections=peutPlacerCroise(grid,word.solution,rr,ccc,dir);
+                        if(intersections>0&&(!meilleur||intersections>meilleur.intersections))
+                            meilleur={row:rr,col:ccc,dir,intersections};
+                    }
+                }
             }
         }
         if(!meilleur)continue;
         for(let i=0;i<word.solution.length;i++){
-            const r=meilleur.row+(meilleur.dir==="down"?i:0),cc=meilleur.col+(meilleur.dir==="across"?i:0);
-            grid[r][cc]=grid[r][cc]||{letter:word.solution[i]};
+            const r=meilleur.row+(meilleur.dir==="down"?i:0);
+            const cc=meilleur.col+(meilleur.dir==="across"?i:0);
+            if(!grid[r][cc])grid[r][cc]={letter:word.solution[i]};
         }
-        entries.push({number:prochainNumero++,...word,row:meilleur.row,col:meilleur.col,dir:meilleur.dir});
+        entries.push({number:0,...word,row:meilleur.row,col:meilleur.col,dir:meilleur.dir});
     }
-    // Recompute clue numbers from actual starts.
+
     const starts=new Map();
     let numero=1;
-    for(const e of entries){
-        const key=e.row+"-"+e.col;
+    entries.sort((a,b)=>a.row-b.row||a.col-b.col||a.dir.localeCompare(b.dir));
+    for(const entry of entries){
+        const key=entry.row+"-"+entry.col;
         if(!starts.has(key))starts.set(key,numero++);
-        e.number=starts.get(key);
+        entry.number=starts.get(key);
     }
     return {size,grid,entries};
 }
@@ -322,22 +334,37 @@ function construireMotsCroises(questions,size=15){
 function rendreMotsCroises(croise){
     const numeros={};
     croise.entries.forEach(e=>{numeros[e.row+"-"+e.col]=e.number;});
-    return '<div class="revision-crossword-wrap"><div class="revision-crossword" style="--cross-size:'+croise.size+'">'+
+    const grille='<div class="revision-crossword-wrap"><div class="revision-crossword" style="--cross-size:'+croise.size+'">'+
         croise.grid.map((row,r)=>'<div class="revision-crossword-row">'+row.map((cell,col)=>{
             if(!cell)return '<span class="revision-crossword-cell empty"></span>';
             const num=numeros[r+"-"+col];
             return '<label class="revision-crossword-cell">'+(num?'<small>'+num+'</small>':"")+
-                '<input maxlength="1" autocomplete="off" data-cross-row="'+r+'" data-cross-col="'+col+'" aria-label="Case '+(r+1)+','+(col+1)+'"></label>';
+                '<input maxlength="1" autocomplete="off" data-cross-row="'+r+'" data-cross-col="'+col+'"></label>';
         }).join("")+'</div>').join("")+'</div></div>';
+
+    const clues=(title,list)=>'<div class="revision-crossword-clue-group"><h4>'+title+'</h4>'+
+        (list.length?list.map(e=>'<button type="button" class="revision-crossword-clue" data-cross-entry="'+e.number+'-'+e.dir+'"><strong>'+e.number+'.</strong> '+escapeHtml(e.indice)+' <span>('+e.solution.length+')</span></button>').join(""):'<p>Aucun indice.</p>')+
+        '</div>';
+
+    return grille+clues("Horizontal",croise.entries.filter(e=>e.dir==="across"))+clues("Vertical",croise.entries.filter(e=>e.dir==="down"));
 }
+
+function motPourMotsMeles(q){
+    const v=valeurs(q);
+    const source=q?.type==="question"?v[1]:v[0];
+    const mot=normaliserTexte(source).replace(/\s/g,"");
+    return mot.length>=3&&mot.length<=12?mot:"";
+}
+
 function construireGrilleMotsMeles(mot,taille=12){
     const motNet=normaliserTexte(mot).replace(/\s/g,"");
-    const n=Math.max(taille,Math.min(12,Math.max(6,motNet.length+2)));
+    const n=12;
     const grille=Array.from({length:n},()=>Array(n).fill(""));
-    const directions=melanger([[0,1],[1,0],[1,1],[-1,1]]);
+    if(!motNet||motNet.length>n)return {size:n,grille,mot:motNet,placement:null};
+
     let placement=null;
-    for(const [dr,dc] of directions){
-        for(let tentative=0;tentative<100&&!placement;tentative++){
+    for(const [dr,dc] of melanger([[0,1],[1,0],[1,1],[-1,1]])){
+        for(let tentative=0;tentative<200&&!placement;tentative++){
             const r0=Math.floor(Math.random()*n),c0=Math.floor(Math.random()*n);
             const r1=r0+dr*(motNet.length-1),c1=c0+dc*(motNet.length-1);
             if(r1<0||r1>=n||c1<0||c1>=n)continue;
@@ -352,6 +379,7 @@ function construireGrilleMotsMeles(mot,taille=12){
         }
         if(placement)break;
     }
+
     const lettres="abcdefghijklmnopqrstuvwxyz";
     for(let r=0;r<n;r++)for(let col=0;col<n;col++){
         if(!grille[r][col])grille[r][col]=lettres[Math.floor(Math.random()*lettres.length)];
@@ -400,21 +428,22 @@ function afficherQuestionSession(){
             contenu+='<h3>Glisser-déposer</h3><p>Glisse la bonne réponse dans la zone ou clique dessus.</p><div class="revision-drag-options">'+choix.map(x=>'<button type="button" draggable="true" class="secondary-button revision-choice revision-drag-item" data-answer="'+escapeHtml(x)+'">'+escapeHtml(x)+'</button>').join("")+'</div><div id="revision-drop-zone" class="revision-drop-zone" tabindex="0">Dépose la réponse ici</div>';
         }
     }else if(mode==="mots_croises"){
-        const croise=construireMotsCroises(ficheEtude.questions);
+        const croise=construireMotsCroises(ficheEtude.questions,13);
         session.motsCroises=croise;
-        contenu+='<h3>Mots croisés</h3><p>Remplis la grille à partir des définitions.</p>'+rendreMotsCroises(croise)+
-            '<div class="revision-crossword-clues"><div><h4>Indices</h4>'+croise.entries.map(e=>'<p><strong>'+e.number+(e.dir==="across"?" → ":" ↓ ")+'</strong> '+escapeHtml(e.indice)+' <span>('+e.solution.length+' lettres)</span></p>').join("")+'</div></div>'+
-            '<button type="button" class="primary-button" id="verifier-mots-croises">Vérifier la grille</button>';
+        if(!croise.entries.length){
+            contenu+='<h3>Mots croisés</h3><p>Aucune grille croisée compatible n’a pu être générée avec cette fiche.</p>';
+        }else{
+            contenu+='<h3>Mots croisés</h3><p>Complète les cases avec les indices horizontaux et verticaux.</p>'+
+                rendreMotsCroises(croise)+'<button type="button" class="primary-button" id="verifier-mots-croises">Vérifier la grille</button>';
+        }
     }else if(mode==="mots_meles"){
-        let jeu,signature;
-        do{
-            jeu=construireGrilleMotsMeles(v[0]||bonne,12);
-            signature=jeu.grille.map(r=>r.join("")).join("");
-        }while(signature===session.dernierMotsMeles && session.motsMeles);
-        session.motsMeles=jeu;session.dernierMotsMeles=signature;
-        contenu+='<h3>Mots mêlés</h3><p>Retrouve le mot caché dans la grille 12 × 12.</p><div class="revision-word-grid" aria-label="Grille de mots mêlés">'+
-            jeu.grille.map(ligne=>'<div class="revision-word-grid-row">'+ligne.map((lettre,i)=>'<span data-word-cell="'+escapeHtml(lettre)+'">'+escapeHtml(lettre.toUpperCase())+'</span>').join("")+'</div>').join("")+
-            '</div><input id="reponse-revision" type="text" placeholder="Mot trouvé"><button type="button" class="primary-button" id="valider-reponse">Valider</button>';
+        const mot=motPourMotsMeles(q);
+        const jeu=construireGrilleMotsMeles(mot,12);
+        session.motsMeles=jeu;
+        contenu+='<h3>Mots mêlés</h3><p>Retrouve le mot caché. Tu peux écrire le mot ou sélectionner directement ses lettres.</p>'+
+            '<div class="revision-word-grid" id="revision-word-grid" aria-label="Grille de mots mêlés">'+
+            jeu.grille.map((ligne,r)=>'<div class="revision-word-grid-row">'+ligne.map((lettre,col)=>'<button type="button" class="revision-word-cell" data-word-row="'+r+'" data-word-col="'+col+'">'+escapeHtml(lettre.toUpperCase())+'</button>').join("")+'</div>').join("")+
+            '</div><div class="revision-word-answer"><input id="reponse-revision" type="text" placeholder="Mot trouvé" autocomplete="off"><button type="button" class="primary-button" id="valider-reponse">Valider</button></div>';
     }else if(mode==="intrus"){
         const choix=melanger([v[0],...ficheEtude.questions.filter(x=>x!==q).slice(0,3).map(x=>valeurs(x)[0]).filter(Boolean)]),intrus=choix[choix.length-1];
         session.intrus=intrus;
