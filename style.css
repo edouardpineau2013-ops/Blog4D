@@ -1106,3 +1106,76 @@ footer{padding:35px 20px;background:var(--primary);color:white}.footer-content{m
     .revision-crossword-row{grid-template-columns:repeat(var(--cross-size),2.2rem);}
     .revision-crossword-cell{width:2.2rem;height:2.2rem;}
 }
+
+
+/* Révision — contours des boutons et jeux de mots */
+.revision-mode-choices .revision-choice,
+.revision-drag-options .revision-drag-item,
+.revision-phrase-word,
+.revision-puzzle-letter,
+.revision-mystery-word{
+    border:2px solid var(--primary,#1bce1e);
+    box-sizing:border-box;
+}
+
+.revision-mode-choices .revision-choice,
+.revision-drag-options .revision-drag-item,
+.revision-phrase-word{
+    border-radius:10px;
+}
+
+.revision-puzzle-letter{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    min-width:42px;
+    min-height:42px;
+    margin:4px;
+    padding:6px 10px;
+    border-radius:9px;
+    background:var(--surface,#fff);
+    font-weight:800;
+    font-size:1.15rem;
+}
+
+.revision-mystery-word{
+    width:fit-content;
+    max-width:100%;
+    margin:16px auto;
+    padding:14px 20px;
+    border-radius:12px;
+    background:var(--surface,#fff);
+    font-weight:900;
+    letter-spacing:.2em;
+    font-size:1.35rem;
+    text-align:center;
+}
+
+.revision-phrase-words{
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px;
+    margin:18px 0;
+}
+
+.revision-phrase-word{
+    padding:10px 14px;
+    background:var(--surface,#fff);
+    color:inherit;
+    cursor:pointer;
+    font:inherit;
+}
+
+.revision-phrase-word:disabled{
+    opacity:.5;
+    cursor:default;
+}
+
+.revision-phrase-result{
+    min-height:48px;
+    margin:12px 0;
+    padding:12px 14px;
+    border:2px solid var(--border,#ddd);
+    border-radius:10px;
+    background:var(--surface-soft,#f7f7f7);
+}
