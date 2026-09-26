@@ -359,7 +359,7 @@ function construireMotsCroises(questions,size=13){
         return acc;
     },[]);
     if(occupees.length){
-        const minR=Math.min(...occupees.map(x=>x[0])),maxR=Math.max(...occupees.map(x=>x[0]);
+        const minR=Math.min(...occupees.map(x=>x[0])),maxR=Math.max(...occupees.map(x=>x[0]));
         const minC=Math.min(...occupees.map(x=>x[1])),maxC=Math.max(...occupees.map(x=>x[1]));
         const marge=1;
         const r0=Math.max(0,minR-marge),r1=Math.min(size-1,maxR+marge);
