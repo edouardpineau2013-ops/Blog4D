@@ -107,6 +107,7 @@ function afficherFiches(fiches){
 
 async function actualiserFiches(){
     const liste=document.getElementById("liste-fiches");
+    if(!liste)return;
     try{
         liste.innerHTML='<div class="empty-state revision-empty"><h3>Chargement des fiches...</h3></div>';
         afficherFiches(await chargerFiches());
@@ -387,6 +388,7 @@ function initialiserCreation(){
     ajouter.onclick=ajouterQuestion;
     form.onsubmit=async event=>{
         event.preventDefault();
+        try{
         const titre=document.getElementById("fiche-titre").value.trim(),matiere=document.getElementById("fiche-matiere").value.trim();
         if(!titre||!matiere){status.textContent="Remplis le nom et la matière.";status.className="revision-status error";return;}
         if(!questionsRevision.length){status.textContent="Ajoute au moins une question.";status.className="revision-status error";return;}
@@ -401,6 +403,11 @@ function initialiserCreation(){
         status.textContent="Fiche publiée !";status.className="revision-status success";
         questionsRevision=[];form.reset();editor.hidden=true;accueil.hidden=false;await actualiserFiches();
         accueil.scrollIntoView({behavior:"smooth",block:"start"});
+        }catch(error){
+            console.error("Erreur création fiche :",error);
+            status.textContent="Impossible de créer la fiche : "+(error?.message||"erreur inconnue");
+            status.className="revision-status error";
+        }
     };
 }
 
