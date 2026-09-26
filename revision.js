@@ -354,11 +354,26 @@ function construireMotsCroises(questions,size=13){
         entry.number=starts.get(key);
     }
 
-    return {size,grid,entries};
+    const occupees=grid.reduce((acc,row,r)=>{
+        row.forEach((cell,col)=>{if(cell)acc.push([r,col]);});
+        return acc;
+    },[]);
+    if(occupees.length){
+        const minR=Math.min(...occupees.map(x=>x[0])),maxR=Math.max(...occupees.map(x=>x[0]);
+        const minC=Math.min(...occupees.map(x=>x[1])),maxC=Math.max(...occupees.map(x=>x[1]));
+        const marge=1;
+        const r0=Math.max(0,minR-marge),r1=Math.min(size-1,maxR+marge);
+        const c0=Math.max(0,minC-marge),c1=Math.min(size-1,maxC+marge);
+        const nouvelleGrille=[];
+        for(let r=r0;r<=r1;r++)nouvelleGrille.push(grid[r].slice(c0,c1+1));
+        for(const entry of entries){entry.row-=r0;entry.col-=c0;}
+        return {size:nouvelleGrille[0]?.length||size,rows:nouvelleGrille.length,grid:nouvelleGrille,entries};
+    }
+    return {size,rows:size,grid,entries};
 }
 function rendreMotsCroises(croise){
     const numeros={};croise.entries.forEach(e=>numeros[e.row+"-"+e.col]=e.number);
-    const grille='<div class="revision-crossword-wrap"><div class="revision-crossword" style="--cross-size:'+croise.size+'">'+croise.grid.map((row,r)=>'<div class="revision-crossword-row">'+row.map((cell,col)=>{
+    const grille='<div class="revision-crossword-wrap"><div class="revision-crossword" style="--cross-cols:'+croise.size+';--cross-rows:'+croise.rows+'">'+croise.grid.map((row,r)=>'<div class="revision-crossword-row">'+row.map((cell,col)=>{
         if(!cell)return '<span class="revision-crossword-cell empty"></span>';
         const n=numeros[r+"-"+col];
         return '<label class="revision-crossword-cell">'+(n?'<small>'+n+'</small>':"")+'<input maxlength="1" autocomplete="off" data-cross-row="'+r+'" data-cross-col="'+col+'"></label>';
@@ -450,13 +465,27 @@ function afficherQuestionSession(){
         session.motsMeles=jeu;session.dernierMotsMeles=signature;
         contenu+='<h3>Mots mêlés</h3><p>Retrouve le mot caché. Tu peux écrire le mot ou sélectionner directement ses lettres.</p><div class="revision-word-grid" id="revision-word-grid" aria-label="Grille de mots mêlés">'+jeu.grille.map((row,r)=>'<div class="revision-word-grid-row">'+row.map((letter,col)=>'<button type="button" class="revision-word-cell" data-word-row="'+r+'" data-word-col="'+col+'">'+escapeHtml(letter.toUpperCase())+'</button>').join("")+'</div>').join("")+'</div><div class="revision-word-answer"><input id="reponse-revision" type="text" placeholder="Mot trouvé" autocomplete="off"><button type="button" class="primary-button" id="valider-reponse">Valider</button></div>';
     }else if(mode==="intrus"){
-        const candidats=ficheEtude.questions.filter(x=>x!==q).map(x=>String(valeurs(x)[0]||"").trim()).filter(Boolean);
-        const banque=["arbre","voiture","océan","montagne","livre","ordinateur","chaise","soleil","rivière","musique","football","pomme","maison","avion","jardin","fenêtre","bateau","forêt","pluie","étoile","chocolat","vélo","chat","chien"];
-        const disponibles=[...new Map([...candidats,...banque].map(x=>[normaliserTexte(x),x])).values()].filter(x=>normaliserTexte(x)!==normaliserTexte(v[0]));
-        const autres=melanger(disponibles).slice(0,3);
-        const choix=melanger([v[0],...autres]);
-        session.intrus=v[0];
-        contenu+='<h3>Trouve l’intrus.</h3><p>'+escapeHtml(promptQuestion(q))+'</p><p>Choisis la proposition qui est différente.</p><div class="revision-mode-choices">'+choix.map(x=>'<button type="button" class="secondary-button revision-choice" data-answer="'+escapeHtml(x)+'">'+escapeHtml(x)+'</button>').join("")+'</div>';
+        const base=String(v[0]||"").trim();
+        const ficheMots=ficheEtude.questions
+            .filter(x=>x!==q)
+            .map(x=>String(valeurs(x)[0]||"").trim())
+            .filter(Boolean);
+        const banqueIntrus=["ballon","banane","voiture","ordinateur","chat","chien","maison","vélo","avion","pizza","guitare","soleil","plage","forêt","montre","chaussure","table","lampe","football","chocolat","train","bateau","jardin","parapluie","téléphone","pomme"];
+        const banqueThematique=["notion","concept","élément","exemple","processus","principe","règle","méthode","événement","personne","lieu","formule"];
+        const thematiques=[base,...ficheMots,...banqueThematique]
+            .filter(Boolean)
+            .filter((x,i,a)=>a.findIndex(y=>normaliserTexte(y)===normaliserTexte(x))===i)
+            .slice(0,3);
+        while(thematiques.length<3){
+            const ajout=banqueThematique.find(x=>!thematiques.some(y=>normaliserTexte(y)===normaliserTexte(x)));
+            if(!ajout)break;
+            thematiques.push(ajout);
+        }
+        const intrusDisponibles=banqueIntrus.filter(x=>!thematiques.some(y=>normaliserTexte(y)===normaliserTexte(x)));
+        const intrus=intrusDisponibles[Math.floor(Math.random()*intrusDisponibles.length)]||"ballon";
+        const choix=melanger([...thematiques,intrus]);
+        session.intrus=intrus;
+        contenu+='<h3>Trouve l’intrus.</h3><p>'+escapeHtml(promptQuestion(q))+'</p><p>Trois propositions correspondent au thème de la question, une est l’intrus.</p><div class="revision-mode-choices">'+choix.map(x=>'<button type="button" class="secondary-button revision-choice" data-answer="'+escapeHtml(x)+'">'+escapeHtml(x)+'</button>').join("")+'</div>';
     }else{
         contenu+='<h3>'+escapeHtml(promptQuestion(q))+'</h3><textarea id="reponse-revision" rows="5" placeholder="Écris ta réponse..."></textarea><button type="button" class="primary-button" id="valider-reponse">Valider</button>';
     }
