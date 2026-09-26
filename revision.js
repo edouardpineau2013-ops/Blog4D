@@ -360,6 +360,7 @@ function construireGrilleMotsMeles(mot,taille=12){
 }
 
 function afficherQuestionSession(){
+    if(session?.relierCleanup){session.relierCleanup();session.relierCleanup=null;}
     const el=document.getElementById("revision-session");
     if(!session||session.index>=session.questions.length){afficherResultatRevision();return;}
     const q=session.questions[session.index],mode=session.modesParQuestion[session.index],v=valeurs(q);
@@ -432,43 +433,79 @@ function afficherQuestionSession(){
     }else if(mode==="qcm"||["paires","associer"].includes(mode)){
         el.querySelectorAll(".revision-choice").forEach(button=>button.onclick=()=>enregistrerChoix(button.dataset.answer,bonne));
     }else if(mode==="relier"){
-        let selection=null;
         const container=document.getElementById("revision-linking");
         const svg=container?.querySelector(".revision-link-lines");
-        const relier=[];
-        const tracer=(g,d)=>{
-            const a=g.getBoundingClientRect(),b=d.getBoundingClientRect(),c=container.getBoundingClientRect();
-            const x1=a.right-c.left,y1=a.top+a.height/2-c.top,x2=b.left-c.left,y2=b.top+b.height/2-c.top;
-            const line=document.createElementNS("http://www.w3.org/2000/svg","line");
-            line.setAttribute("x1",x1);line.setAttribute("y1",y1);line.setAttribute("x2",x2);line.setAttribute("y2",y2);line.setAttribute("class","revision-link-line");
-            svg.appendChild(line);
+        const selected={button:null};
+        const connections=new Set();
+
+        const redraw=()=>{
+            if(!container||!svg)return;
+            svg.innerHTML="";
+            const base=container.getBoundingClientRect();
+            connections.forEach(id=>{
+                const left=container.querySelector('.revision-link-left[data-id="'+id+'"]');
+                const right=container.querySelector('.revision-link-right[data-id="'+id+'"]');
+                if(!left||!right)return;
+                const a=left.getBoundingClientRect(),b=right.getBoundingClientRect();
+                const line=document.createElementNS("http://www.w3.org/2000/svg","line");
+                line.setAttribute("x1",a.right-base.left);
+                line.setAttribute("y1",a.top+a.height/2-base.top);
+                line.setAttribute("x2",b.left-base.left);
+                line.setAttribute("y2",b.top+b.height/2-base.top);
+                line.setAttribute("class","revision-link-line");
+                svg.appendChild(line);
+            });
         };
-        const choisir=(button,cote)=>{
-            if(selection&&selection.cote===cote){selection.button.classList.remove("selected");selection=null;return;}
-            if(cote==="gauche"){
-                if(selection)selection.button.classList.remove("selected");
-                selection={id:button.dataset.id,cote,button};
+
+        const choose=(button,side)=>{
+            if(button.disabled)return;
+            if(side==="left"){
+                if(selected.button)selected.button.classList.remove("selected");
+                selected.button=button;
                 button.classList.add("selected");
                 return;
             }
-            if(!selection||selection.cote!=="gauche")return;
-            const gauche=selection.button, id=button.dataset.id;
-            if(selection.id===id){
-                tracer(gauche,button);gauche.disabled=true;button.disabled=true;relier.push(id);
-                gauche.classList.remove("selected");selection=null;
-                if(relier.length===1 && session.relier.length>1) {
-                    // One correct target is enough for this question; the remaining pairs stay as practice.
-                    enregistrerChoix(id,session.relier.find(x=>x.correct)?.id);
-                }
-            }else{
+            if(!selected.button)return;
+
+            const left=selected.button;
+            if(left.dataset.id!==button.dataset.id){
                 const feedback=document.getElementById("feedback-revision");
                 feedback.textContent="Ce n’est pas la bonne paire. Essaie encore.";
                 feedback.className="revision-feedback error";
-                gauche.classList.remove("selected");selection=null;
+                left.classList.remove("selected");
+                selected.button=null;
+                return;
+            }
+
+            connections.add(button.dataset.id);
+            left.disabled=true;
+            button.disabled=true;
+            left.classList.remove("selected");
+            selected.button=null;
+            redraw();
+
+            const feedback=document.getElementById("feedback-revision");
+            feedback.textContent="Bonne liaison.";
+            feedback.className="revision-feedback success";
+
+            if(connections.size===session.relier.length){
+                session.score++;
+                const next=document.createElement("button");
+                next.type="button";
+                next.className="primary-button";
+                next.textContent="Question suivante";
+                next.onclick=()=>{session.index++;afficherQuestionSession();};
+                feedback.after(next);
             }
         };
-        el.querySelectorAll(".revision-link-left").forEach(b=>b.onclick=()=>choisir(b,"gauche"));
-        el.querySelectorAll(".revision-link-right").forEach(b=>b.onclick=()=>choisir(b,"droite"));
+
+        el.querySelectorAll(".revision-link-left").forEach(b=>b.onclick=()=>choose(b,"left"));
+        el.querySelectorAll(".revision-link-right").forEach(b=>b.onclick=()=>choose(b,"right"));
+        requestAnimationFrame(redraw);
+
+        const resize=()=>requestAnimationFrame(redraw);
+        window.addEventListener("resize",resize);
+        session.relierCleanup=()=>window.removeEventListener("resize",resize);
     }else if(mode==="mots_croises"){
         const bouton=document.getElementById("verifier-mots-croises");
         bouton.onclick=()=>{
