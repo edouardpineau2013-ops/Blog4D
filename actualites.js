@@ -8,15 +8,15 @@ document.addEventListener("DOMContentLoaded", async () => {
     const afficherDate = date => new Date(date).toLocaleString("fr-FR", {dateStyle:"long", timeStyle:"short"});
 
     async function chargerActualites() {
-        liste.innerHTML = '<div class="empty-state"><div class="empty-icon">⏳</div><h3>Chargement...</h3></div>';
+        liste.innerHTML = '<div class="empty-state"><div class="empty-icon"><img src="img/hourglass.svg" class="emoji-svg" alt="" aria-hidden="true"></div><h3>Chargement...</h3></div>';
         const {data, error} = await supabaseClient.from("actualites").select("id,titre,contenu,created_at,updated_at,auteur_id,auteur_identifiant").order("created_at", {ascending:false});
         if (error) {
             console.error(error);
-            liste.innerHTML = '<div class="empty-state"><div class="empty-icon">⚠️</div><h3>Impossible de charger les actualités</h3><p>Vérifie la configuration Supabase.</p></div>';
+            liste.innerHTML = '<div class="empty-state"><div class="empty-icon"><img src="img/warning.svg" class="emoji-svg" alt="" aria-hidden="true"></div><h3>Impossible de charger les actualités</h3><p>Vérifie la configuration Supabase.</p></div>';
             return;
         }
         if (!data.length) {
-            liste.innerHTML = '<div class="empty-state"><div class="empty-icon">📰</div><h3>Aucune actualité pour le moment</h3><p>La première actualité peut être publiée par un membre connecté.</p></div>';
+            liste.innerHTML = '<div class="empty-state"><div class="empty-icon"><img src="img/news.svg" class="emoji-svg" alt="" aria-hidden="true"></div><h3>Aucune actualité pour le moment</h3><p>La première actualité peut être publiée par un membre connecté.</p></div>';
             return;
         }
         const admin = await estAdmin();
