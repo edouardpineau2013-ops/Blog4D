@@ -328,7 +328,7 @@ function initialiserCreation(){
     ouvrir.onclick=async()=>{
         if(!await utilisateurConnecte()){window.location.href="connexion.html";return;}
         questionsRevision=[];form.reset();afficherQuestions();status.textContent="";status.className="revision-status";
-        cacherToutesLesVues();editor.hidden=false;editor.scrollIntoView({behavior:"smooth",block:"start");
+        cacherToutesLesVues();editor.hidden=false;editor.scrollIntoView({behavior:"smooth",block:"start"});
     };
     annuler.onclick=()=>{editor.hidden=true;accueil.hidden=false;};
     ajouter.onclick=ajouterQuestion;
