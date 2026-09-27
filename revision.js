@@ -64,10 +64,51 @@ function normaliserTexte(t){
 
 const MOTS_VIDES=new Set("le la les un une des du de d au aux et ou en dans sur sous pour par avec sans est sont a que qui quoi quel quelle quels quelles ce cette ces se sa son ses il elle ils elles je tu on nous vous".split(" "));
 
+function distanceLevenshtein(a,b){
+    if(a===b)return 0;
+    const m=a.length,n=b.length;
+    if(!m)return n;
+    if(!n)return m;
+    let prev=Array.from({length:n+1},(_,i)=>i);
+    for(let i=1;i<=m;i++){
+        const cur=[i];
+        for(let j=1;j<=n;j++){
+            cur[j]=a[i-1]===b[j-1]?prev[j-1]:1+Math.min(prev[j-1],prev[j],cur[j-1]);
+        }
+        prev=cur;
+    }
+    return prev[n];
+}
+
+function motsSignificatifs(texte){
+    return normaliserTexte(texte).split(" ").filter(mot=>mot&&!MOTS_VIDES.has(mot));
+}
+
+function toleranceOrthographe(mot){
+    if(mot.length<=3)return 0;
+    if(mot.length<=6)return 1;
+    return 2;
+}
+
+function motsProches(a,b){
+    return a===b||distanceLevenshtein(a,b)<=toleranceOrthographe(a);
+}
+
 function evaluerReponse(attendue,reponse){
     const a=normaliserTexte(attendue),r=normaliserTexte(reponse);
     if(!a||!r)return {correct:false,score:0};
-    return {correct:a===r,score:a===r?1:0};
+    if(a===r)return {correct:true,score:1};
+    const motsA=motsSignificatifs(attendue);
+    if(!motsA.length)return {correct:false,score:0};
+    const motsR=[...motsSignificatifs(reponse)];
+    let trouves=0;
+    for(const mot of motsA){
+        const idx=motsR.findIndex(m=>motsProches(mot,m));
+        if(idx!==-1){trouves++;motsR.splice(idx,1);}
+    }
+    const score=trouves/motsA.length;
+    const seuil=motsA.length<=2?1:0.7;
+    return {correct:score>=seuil,score};
 }
 
 function melanger(array){return [...array].sort(()=>Math.random()-.5);}
