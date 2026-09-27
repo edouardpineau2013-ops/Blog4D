@@ -1291,6 +1291,31 @@ footer{padding:35px 20px;background:var(--primary);color:white}.footer-content{m
     border-color:#1bce1e;
     background:rgba(27,206,30,.06);
 }
+.revision-puzzle-board{ position:relative; }
+.revision-puzzle-bands{
+    position:absolute;
+    inset:0;
+    width:100%;
+    height:100%;
+    pointer-events:none;
+    overflow:visible;
+    z-index:0;
+}
+.revision-puzzle-band{
+    stroke:#1bce1e;
+    stroke-width:10;
+    stroke-linecap:round;
+    opacity:.85;
+    transition:opacity .15s ease;
+}
+.revision-puzzle-band:hover{ opacity:1; }
+.revision-puzzle-pieces{ position:relative; z-index:1; }
+.revision-puzzle-piece.linked{
+    cursor:default;
+    border-color:#1bce1e;
+    background:rgba(27,206,30,.1);
+    box-shadow:none;
+}
 @media(max-width:700px){
     .revision-puzzle-pieces,
     .revision-puzzle-pairs{
