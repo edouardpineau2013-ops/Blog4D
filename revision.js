@@ -510,6 +510,32 @@ function afficherQuestionSession(){
         const pieces=melanger([...paires.map(x=>({id:x.id+"-g",pair:x.pair,cote:"gauche",texte:x.gauche})),...paires.map(x=>({id:x.id+"-d",pair:x.pair,cote:"droite",texte:x.droite}))]);
         session.puzzle={paires,trouvees:[]};
         contenu+='<h3>Puzzle</h3><p>Fais glisser une pièce jusqu\'à la zone « Paires assemblées », puis dépose sa moitié par-dessus pour former une paire. Trouve les 3 bonnes paires.</p><div class="revision-puzzle-board"><div class="revision-puzzle-pieces" id="revision-puzzle-pieces">'+pieces.map(piece=>'<button type="button" class="revision-puzzle-piece" data-piece-id="'+piece.id+'" data-pair="'+piece.pair+'" style="touch-action:none">'+escapeHtml(piece.texte||"—")+'</button>').join("")+'</div><div class="revision-puzzle-pairs"><div class="revision-puzzle-slot" id="revision-puzzle-slot"><span>Paires assemblées</span><div class="revision-puzzle-slot-content" id="revision-puzzle-slot-content"></div></div></div></div>';
+        }else if(mode==="relier"){
+        const candidats=melanger(ficheEtude.questions.filter(x=>x&&x!==q&&valeurs(x)[0]&&valeurs(x)[1]));
+        const groupe=[q,...candidats].slice(0,4);
+        if(groupe.length<2){
+            contenu+='<h3>Relier</h3><p>Pas assez de questions dans cette fiche pour ce mode.</p>';
+        }else{
+            const paires=groupe.map((item,i)=>({id:"relier-"+i,gauche:String(valeurs(item)[0]||""),droite:String(valeurs(item)[1]||"")}));
+            session.relier=paires;
+            const droite=melanger(paires);
+            contenu+='<h3>Relie chaque élément à sa correspondance</h3><p>Clique un élément à gauche puis sa correspondance à droite.</p><div class="revision-linking"><svg class="revision-link-lines"></svg><div class="revision-link-column">'+paires.map(p=>'<button type="button" class="revision-link-item revision-link-left" data-id="'+p.id+'">'+escapeHtml(p.gauche)+'</button>').join("")+'</div><div class="revision-link-column">'+droite.map(p=>'<button type="button" class="revision-link-item revision-link-right" data-id="'+p.id+'">'+escapeHtml(p.droite)+'</button>').join("")+'</div></div>';
+        }
+        }else if(mode==="glisser_deposer"){
+        contenu+='<h3>'+escapeHtml(promptQuestion(q))+'</h3><p>Fais glisser la bonne réponse dans la zone, ou clique-la directement.</p><div class="revision-drag-options">'+choix.map(x=>'<button type="button" draggable="true" class="secondary-button revision-drag-item" data-answer="'+escapeHtml(x)+'">'+escapeHtml(x)+'</button>').join("")+'</div><div class="revision-drop-zone" id="revision-drop-zone">Dépose ta réponse ici</div>';
+        }
+    }else if(mode==="intrus"){
+        const candidats=melanger(ficheEtude.questions.filter(x=>x&&x!==q&&valeurs(x)[0]&&valeurs(x)[1]));
+        const groupe=[q,...candidats].slice(0,4);
+        if(groupe.length<3){
+            contenu+='<h3>Trouve l\'intrus</h3><p>Pas assez de questions dans cette fiche pour ce mode.</p>';
+        }else{
+            const items=groupe.map((item,i)=>({id:"intrus-"+i,prompt:String(valeurs(item)[0]||""),reponse:String(valeurs(item)[1]||"")}));
+            const indexIntrus=Math.floor(Math.random()*items.length);
+            const autre=items[(indexIntrus+1)%items.length];
+            session.intrus=items[indexIntrus].id;
+            items[indexIntrus]={...items[indexIntrus],reponse:autre.reponse};
+            contenu+='<h3>Trouve l\'intrus</h3><p>Un de ces couples question / réponse ne va pas ensemble. Clique dessus.</p><div class="revision-mode-choices">'+items.map(it=>'<button type="button" class="secondary-button revision-choice" data-answer="'+escapeHtml(it.id)+'"><strong>'+escapeHtml(it.prompt)+'</strong><br>'+escapeHtml(it.reponse)+'</button>').join("")+'</div>';
         }
     }else if(mode==="lettres_melangees"){
         const solution=String(v[0]||"").trim();
