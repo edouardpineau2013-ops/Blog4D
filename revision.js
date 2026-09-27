@@ -238,12 +238,6 @@ function modeUtilisablePourQuestion(q,mode){
     return !!MODES_REVISION[mode]?.types.includes(q?.type);
 }
 
-function modeUtilisablePourQuestion(q,mode){
-    if(mode==="mots_meles")return !!motPourMotsMeles(q);
-    if(mode==="mots_croises")return !!extraireMotCroise(q);
-    return !!MODES_REVISION[mode]?.types.includes(q?.type);
-}
-
 function lancerRevision(){
     const nombre=Number(document.getElementById("nombre-a-reviser").value);
     const modes=[...document.querySelectorAll('input[name="revision-mode"]:checked')].map(x=>x.value);
@@ -473,7 +467,7 @@ function marquerQuestionReussie(){
 }
 
 function afficherQuestionSession(){
-    if(session?.relierCleanup){session.relierCleanup();session.relierCleanup=null;}
+    if(session?.modeCleanup){session.modeCleanup();session.modeCleanup=null;}
     const el=document.getElementById("revision-session");
     if(!session||session.index>=session.questions.length){afficherResultatRevision();return;}
     const q=session.questions[session.index],mode=session.modesParQuestion[session.index],v=valeurs(q);
@@ -508,8 +502,8 @@ function afficherQuestionSession(){
         for(const item of [q,...candidats]){if(!groupe.includes(item))groupe.push(item);if(groupe.length===3)break;}
         const paires=groupe.map((item,i)=>({id:"puzzle-"+i,pair:i,gauche:String(valeurs(item)[0]||""),droite:String(valeurs(item)[1]||"")}));
         const pieces=melanger([...paires.map(x=>({id:x.id+"-g",pair:x.pair,cote:"gauche",texte:x.gauche})),...paires.map(x=>({id:x.id+"-d",pair:x.pair,cote:"droite",texte:x.droite}))]);
-        session.puzzle={paires,trouvees:[]};
-        contenu+='<h3>Puzzle</h3><p>Fais glisser une pièce jusqu\'à la zone « Paires assemblées », puis dépose sa moitié par-dessus pour former une paire. Trouve les 3 bonnes paires.</p><div class="revision-puzzle-board"><div class="revision-puzzle-pieces" id="revision-puzzle-pieces">'+pieces.map(piece=>'<button type="button" class="revision-puzzle-piece" data-piece-id="'+piece.id+'" data-pair="'+piece.pair+'" style="touch-action:none">'+escapeHtml(piece.texte||"—")+'</button>').join("")+'</div><div class="revision-puzzle-pairs"><div class="revision-puzzle-slot" id="revision-puzzle-slot"><span>Paires assemblées</span><div class="revision-puzzle-slot-content" id="revision-puzzle-slot-content"></div></div></div></div>';
+        session.puzzle={paires,liens:new Set()};
+        contenu+='<h3>Puzzle</h3><p>Clique deux pièces pour les associer. Un bandeau les relie si c\'est la bonne paire ; clique sur le bandeau pour les séparer.</p><div class="revision-puzzle-board" id="revision-puzzle-board"><svg class="revision-puzzle-bands"></svg><div class="revision-puzzle-pieces" id="revision-puzzle-pieces">'+pieces.map(piece=>'<button type="button" class="revision-puzzle-piece" data-piece-id="'+piece.id+'" data-pair="'+piece.pair+'">'+escapeHtml(piece.texte||"—")+'</button>').join("")+'</div></div>';
         }else if(mode==="relier"){
         const candidats=melanger(ficheEtude.questions.filter(x=>x&&x!==q&&valeurs(x)[0]&&valeurs(x)[1]));
         const groupe=[q,...candidats].slice(0,4);
@@ -578,14 +572,48 @@ function afficherQuestionSession(){
     }else if(mode==="qcm"||mode==="paires"){
         el.querySelectorAll(".revision-choice").forEach(button=>button.onclick=()=>enregistrerChoix(button.dataset.answer,bonne));
     }else if(mode==="puzzle"){
-        const zone=document.getElementById("revision-puzzle-pieces"),slot=document.getElementById("revision-puzzle-slot"),contenuSlot=document.getElementById("revision-puzzle-slot-content");
-        const pieces=[...(zone?.querySelectorAll(".revision-puzzle-piece")||[])];
-        const total=pieces.length;
+        const board=document.getElementById("revision-puzzle-board");
+        const svg=board?.querySelector(".revision-puzzle-bands");
+        const pieces=[...(board?.querySelectorAll(".revision-puzzle-piece")||[])];
+        const totalPaires=session.puzzle.paires.length;
+        const liens=session.puzzle.liens;
+        let selection=null;
+
+        const pieceParId=id=>pieces.find(p=>p.dataset.pieceId===id);
+
+        const redraw=()=>{
+            if(!board||!svg)return;
+            svg.innerHTML="";
+            const base=board.getBoundingClientRect();
+            liens.forEach(lien=>{
+                const a=pieceParId(lien.a),b=pieceParId(lien.b);
+                if(!a||!b)return;
+                const ra=a.getBoundingClientRect(),rb=b.getBoundingClientRect();
+                const bande=document.createElementNS("http://www.w3.org/2000/svg","line");
+                bande.setAttribute("x1",ra.left+ra.width/2-base.left);
+                bande.setAttribute("y1",ra.top+ra.height/2-base.top);
+                bande.setAttribute("x2",rb.left+rb.width/2-base.left);
+                bande.setAttribute("y2",rb.top+rb.height/2-base.top);
+                bande.setAttribute("class","revision-puzzle-band");
+                bande.style.pointerEvents="stroke";
+                bande.style.cursor="pointer";
+                bande.addEventListener("click",()=>{
+                    liens.delete(lien);
+                    a.classList.remove("linked");b.classList.remove("linked");
+                    a.disabled=false;b.disabled=false;
+                    redraw();
+                    const feedback=document.getElementById("feedback-revision");
+                    feedback.textContent="Paire séparée.";
+                    feedback.className="revision-feedback";
+                });
+                svg.appendChild(bande);
+            });
+        };
+
         const verifierFin=()=>{
-            const feedback=document.getElementById("feedback-revision");
-            if(contenuSlot.querySelectorAll(".revision-puzzle-piece.assembled").length===total){
+            if(liens.size===totalPaires){
                 marquerQuestionReussie();
-                slot?.classList.add("complete");
+                const feedback=document.getElementById("feedback-revision");
                 feedback.textContent="Toutes les paires sont assemblées.";
                 feedback.className="revision-feedback success";
                 const suivant=document.createElement("button");
@@ -594,61 +622,44 @@ function afficherQuestionSession(){
                 feedback.after(suivant);
             }
         };
-        const deposer=piece=>{
-            const feedback=document.getElementById("feedback-revision");
-            const partenaire=[...contenuSlot.children].find(el=>el.classList.contains("revision-puzzle-piece")&&el.dataset.pair===piece.dataset.pair&&el!==piece);
-            if(partenaire){
-                partenaire.classList.add("assembled");piece.classList.add("assembled");
-                const paire=document.createElement("div");
-                paire.className="revision-puzzle-pair";
-                paire.appendChild(partenaire);paire.appendChild(piece);
-                contenuSlot.appendChild(paire);
-                feedback.textContent="Bonne paire !";
-                feedback.className="revision-feedback success";
-                verifierFin();
-            }else{
-                contenuSlot.appendChild(piece);
-                feedback.textContent="Pièce déposée, trouve maintenant sa moitié.";
-                feedback.className="revision-feedback";
-            }
-        };
+
         pieces.forEach(piece=>{
-            let dragging=false,startX=0,startY=0;
-            piece.addEventListener("pointerdown",event=>{
-                if(piece.dataset.locked)return;
-                dragging=true;
-                startX=event.clientX;startY=event.clientY;
-                piece.setPointerCapture(event.pointerId);
-                piece.classList.add("dragging");
-                piece.style.zIndex="50";
-                event.preventDefault();
-            });
-            piece.addEventListener("pointermove",event=>{
-                if(!dragging)return;
-                const dx=event.clientX-startX,dy=event.clientY-startY;
-                piece.style.transform="translate("+dx+"px,"+dy+"px)";
-                const rect=slot.getBoundingClientRect();
-                const survole=event.clientX>=rect.left&&event.clientX<=rect.right&&event.clientY>=rect.top&&event.clientY<=rect.bottom;
-                slot.classList.toggle("drag-over",survole);
-            });
-            const relacher=event=>{
-                if(!dragging)return;
-                dragging=false;
-                piece.releasePointerCapture(event.pointerId);
-                piece.classList.remove("dragging");
-                piece.style.zIndex="";
-                slot.classList.remove("drag-over");
-                const rect=slot.getBoundingClientRect();
-                const depose=event.clientX>=rect.left&&event.clientX<=rect.right&&event.clientY>=rect.top&&event.clientY<=rect.bottom;
-                piece.style.transform="";
-                if(depose){
-                    piece.dataset.locked="";
-                    deposer(piece);
+            piece.addEventListener("click",()=>{
+                if(piece.disabled)return;
+                const feedback=document.getElementById("feedback-revision");
+                if(!selection){
+                    selection=piece;
+                    piece.classList.add("selected");
+                    return;
                 }
-            };
-            piece.addEventListener("pointerup",relacher);
-            piece.addEventListener("pointercancel",relacher);
+                if(selection===piece){
+                    selection.classList.remove("selected");
+                    selection=null;
+                    return;
+                }
+                if(selection.dataset.pair===piece.dataset.pair){
+                    liens.add({a:selection.dataset.pieceId,b:piece.dataset.pieceId});
+                    selection.classList.remove("selected");
+                    selection.classList.add("linked");piece.classList.add("linked");
+                    selection.disabled=true;piece.disabled=true;
+                    selection=null;
+                    redraw();
+                    feedback.textContent="Bonne paire !";
+                    feedback.className="revision-feedback success";
+                    verifierFin();
+                }else{
+                    feedback.textContent="Ce n'est pas la bonne paire. Essaie encore.";
+                    feedback.className="revision-feedback error";
+                    selection.classList.remove("selected");
+                    selection=null;
+                }
+            });
         });
+
+        requestAnimationFrame(redraw);
+        const resize=()=>requestAnimationFrame(redraw);
+        window.addEventListener("resize",resize);
+        session.modeCleanup=()=>window.removeEventListener("resize",resize);
     }else if(mode==="relier"){
         const container=document.getElementById("revision-linking"),svg=container?.querySelector(".revision-link-lines"),selected={button:null},connections=new Set();
         const redraw=()=>{if(!container||!svg)return;svg.innerHTML="";const base=container.getBoundingClientRect();connections.forEach(id=>{const left=container.querySelector('.revision-link-left[data-id="'+id+'"]'),right=container.querySelector('.revision-link-right[data-id="'+id+'"]');if(!left||!right)return;const a=left.getBoundingClientRect(),b=right.getBoundingClientRect(),line=document.createElementNS("http://www.w3.org/2000/svg","line");line.setAttribute("x1",a.right-base.left);line.setAttribute("y1",a.top+a.height/2-base.top);line.setAttribute("x2",b.left-base.left);line.setAttribute("y2",b.top+b.height/2-base.top);line.setAttribute("class","revision-link-line");svg.appendChild(line);});};
@@ -663,7 +674,7 @@ function afficherQuestionSession(){
             if(connections.size===session.relier.length){marquerQuestionReussie();const next=document.createElement("button");next.type="button";next.className="primary-button";next.textContent="Question suivante";next.onclick=()=>{session.index++;afficherQuestionSession();};feedback.after(next);}
         };
         el.querySelectorAll(".revision-link-left").forEach(b=>b.onclick=()=>choose(b,"left"));el.querySelectorAll(".revision-link-right").forEach(b=>b.onclick=()=>choose(b,"right"));
-        requestAnimationFrame(redraw);const resize=()=>requestAnimationFrame(redraw);window.addEventListener("resize",resize);session.relierCleanup=()=>window.removeEventListener("resize",resize);
+        requestAnimationFrame(redraw);const resize=()=>requestAnimationFrame(redraw);window.addEventListener("resize",resize);session.modeCleanup=()=>window.removeEventListener("resize",resize);
     }else if(mode==="phrase_reconstituer"){
         const resultat=document.getElementById("revision-phrase-result");
         const mots=[...el.querySelectorAll(".revision-phrase-word")];
