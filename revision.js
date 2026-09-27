@@ -468,7 +468,7 @@ function afficherQuestionSession(){
         const paires=groupe.map((item,i)=>({id:"puzzle-"+i,pair:i,gauche:String(valeurs(item)[0]||""),droite:String(valeurs(item)[1]||"")}));
         const pieces=melanger([...paires.map(x=>({id:x.id+"-g",pair:x.pair,cote:"gauche",texte:x.gauche})),...paires.map(x=>({id:x.id+"-d",pair:x.pair,cote:"droite",texte:x.droite}))]);
         session.puzzle={paires,trouvees:[]};
-        contenu+='<h3>Puzzle</h3><p>Clique deux pièces qui vont ensemble pour assembler les 3 bonnes paires.</p><div class="revision-puzzle-board"><div class="revision-puzzle-pieces" id="revision-puzzle-pieces">'+pieces.map(piece=>'<button type="button" class="revision-puzzle-piece" data-piece-id="'+piece.id+'" data-pair="'+piece.pair+'">'+escapeHtml(piece.texte||"—")+'</button>').join("")+'</div><div class="revision-puzzle-pairs"><div class="revision-puzzle-slot" id="revision-puzzle-slot"><span>Paires assemblées</span><div class="revision-puzzle-slot-content" id="revision-puzzle-slot-content"></div></div></div></div>';
+        contenu+='<h3>Puzzle</h3><p>Fais glisser une pièce jusqu\'à la zone « Paires assemblées », puis dépose sa moitié par-dessus pour former une paire. Trouve les 3 bonnes paires.</p><div class="revision-puzzle-board"><div class="revision-puzzle-pieces" id="revision-puzzle-pieces">'+pieces.map(piece=>'<button type="button" class="revision-puzzle-piece" data-piece-id="'+piece.id+'" data-pair="'+piece.pair+'" style="touch-action:none">'+escapeHtml(piece.texte||"—")+'</button>').join("")+'</div><div class="revision-puzzle-pairs"><div class="revision-puzzle-slot" id="revision-puzzle-slot"><span>Paires assemblées</span><div class="revision-puzzle-slot-content" id="revision-puzzle-slot-content"></div></div></div></div>';
         }
     }else if(mode==="lettres_melangees"){
         const solution=String(v[0]||"").trim();
@@ -512,41 +512,76 @@ function afficherQuestionSession(){
         el.querySelectorAll(".revision-choice").forEach(button=>button.onclick=()=>enregistrerChoix(button.dataset.answer,bonne));
     }else if(mode==="puzzle"){
         const zone=document.getElementById("revision-puzzle-pieces"),slot=document.getElementById("revision-puzzle-slot"),contenuSlot=document.getElementById("revision-puzzle-slot-content");
-        let premier=null;
         const pieces=[...(zone?.querySelectorAll(".revision-puzzle-piece")||[])];
-        const choisir=piece=>{
-            if(piece.disabled)return;
-            if(!premier){premier=piece;piece.classList.add("selected");return;}
-            if(premier===piece){premier.classList.remove("selected");premier=null;return;}
+        const total=pieces.length;
+        const verifierFin=()=>{
             const feedback=document.getElementById("feedback-revision");
-            if(premier.dataset.pair===piece.dataset.pair){
-                premier.classList.remove("selected");
-                premier.disabled=true;piece.disabled=true;
-                premier.classList.add("assembled");piece.classList.add("assembled");
-                const paire=document.createElement("div");
-                paire.className="revision-puzzle-pair";
-                paire.appendChild(premier);paire.appendChild(piece);
-                contenuSlot?.appendChild(paire);
-                premier=null;
-                feedback.textContent="Bonne paire !";
+            if(contenuSlot.querySelectorAll(".revision-puzzle-piece.assembled").length===total){
+                marquerQuestionReussie();
+                slot?.classList.add("complete");
+                feedback.textContent="Toutes les paires sont assemblées.";
                 feedback.className="revision-feedback success";
-                if(!pieces.some(x=>!x.disabled)){
-                    marquerQuestionReussie();
-                    slot?.classList.add("complete");
-                    feedback.textContent="Toutes les paires sont assemblées.";
-                    const suivant=document.createElement("button");
-                    suivant.type="button";suivant.className="primary-button";suivant.textContent="Question suivante";
-                    suivant.onclick=()=>{session.index++;afficherQuestionSession();};
-                    feedback.after(suivant);
-                }
-            }else{
-                feedback.textContent="Ce n’est pas la bonne paire. Essaie encore.";
-                feedback.className="revision-feedback error";
-                premier.classList.remove("selected");
-                premier=null;
+                const suivant=document.createElement("button");
+                suivant.type="button";suivant.className="primary-button";suivant.textContent="Question suivante";
+                suivant.onclick=()=>{session.index++;afficherQuestionSession();};
+                feedback.after(suivant);
             }
         };
-        pieces.forEach(piece=>piece.onclick=()=>choisir(piece));
+        const deposer=piece=>{
+            const feedback=document.getElementById("feedback-revision");
+            const partenaire=[...contenuSlot.children].find(el=>el.classList.contains("revision-puzzle-piece")&&el.dataset.pair===piece.dataset.pair&&el!==piece);
+            if(partenaire){
+                partenaire.classList.add("assembled");piece.classList.add("assembled");
+                const paire=document.createElement("div");
+                paire.className="revision-puzzle-pair";
+                paire.appendChild(partenaire);paire.appendChild(piece);
+                contenuSlot.appendChild(paire);
+                feedback.textContent="Bonne paire !";
+                feedback.className="revision-feedback success";
+                verifierFin();
+            }else{
+                contenuSlot.appendChild(piece);
+                feedback.textContent="Pièce déposée, trouve maintenant sa moitié.";
+                feedback.className="revision-feedback";
+            }
+        };
+        pieces.forEach(piece=>{
+            let dragging=false,startX=0,startY=0;
+            piece.addEventListener("pointerdown",event=>{
+                if(piece.dataset.locked)return;
+                dragging=true;
+                startX=event.clientX;startY=event.clientY;
+                piece.setPointerCapture(event.pointerId);
+                piece.classList.add("dragging");
+                piece.style.zIndex="50";
+                event.preventDefault();
+            });
+            piece.addEventListener("pointermove",event=>{
+                if(!dragging)return;
+                const dx=event.clientX-startX,dy=event.clientY-startY;
+                piece.style.transform="translate("+dx+"px,"+dy+"px)";
+                const rect=slot.getBoundingClientRect();
+                const survole=event.clientX>=rect.left&&event.clientX<=rect.right&&event.clientY>=rect.top&&event.clientY<=rect.bottom;
+                slot.classList.toggle("drag-over",survole);
+            });
+            const relacher=event=>{
+                if(!dragging)return;
+                dragging=false;
+                piece.releasePointerCapture(event.pointerId);
+                piece.classList.remove("dragging");
+                piece.style.zIndex="";
+                slot.classList.remove("drag-over");
+                const rect=slot.getBoundingClientRect();
+                const depose=event.clientX>=rect.left&&event.clientX<=rect.right&&event.clientY>=rect.top&&event.clientY<=rect.bottom;
+                piece.style.transform="";
+                if(depose){
+                    piece.dataset.locked="";
+                    deposer(piece);
+                }
+            };
+            piece.addEventListener("pointerup",relacher);
+            piece.addEventListener("pointercancel",relacher);
+        });
     }else if(mode==="relier"){
         const container=document.getElementById("revision-linking"),svg=container?.querySelector(".revision-link-lines"),selected={button:null},connections=new Set();
         const redraw=()=>{if(!container||!svg)return;svg.innerHTML="";const base=container.getBoundingClientRect();connections.forEach(id=>{const left=container.querySelector('.revision-link-left[data-id="'+id+'"]'),right=container.querySelector('.revision-link-right[data-id="'+id+'"]');if(!left||!right)return;const a=left.getBoundingClientRect(),b=right.getBoundingClientRect(),line=document.createElementNS("http://www.w3.org/2000/svg","line");line.setAttribute("x1",a.right-base.left);line.setAttribute("y1",a.top+a.height/2-base.top);line.setAttribute("x2",b.left-base.left);line.setAttribute("y2",b.top+b.height/2-base.top);line.setAttribute("class","revision-link-line");svg.appendChild(line);});};
