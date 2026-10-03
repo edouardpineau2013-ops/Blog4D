@@ -461,9 +461,12 @@ function verdict(ok,attendu){
 }
 
 function enregistrerChoix(reponse,attendue,libelleErreur){
+    if(session.etat.repondu)return;      // une seule réponse par question
+    session.etat.repondu=true;
     const ok=normaliserTexte(reponse)===normaliserTexte(attendue);
     document.querySelectorAll("#revision-session [data-answer]").forEach(b=>{
         b.disabled=true;
+        b.draggable=false;
         const k=normaliserTexte(b.dataset.answer);
         if(k===normaliserTexte(attendue))b.classList.add("is-correct");
         else if(k===normaliserTexte(reponse))b.classList.add("is-wrong");
@@ -619,9 +622,10 @@ JEUX.glisser_deposer={
             item.addEventListener("click",()=>enregistrerChoix(item.dataset.answer,bonne));
         });
         const zone=document.getElementById("revision-drop-zone");
-        zone.addEventListener("dragover",e=>e.preventDefault());
+        zone.addEventListener("dragover",e=>{if(!session.etat.repondu)e.preventDefault();});
         zone.addEventListener("drop",e=>{
             e.preventDefault();
+            if(session.etat.repondu)return;
             const rep=e.dataTransfer?.getData("text/plain")||"";
             if(rep)enregistrerChoix(rep,bonne);
         });
@@ -781,29 +785,56 @@ JEUX.puzzle={
     }
 };
 
-/* Clic dans l'ordre : phrase à reconstituer, frise chronologique */
+/* Mots à ordonner : clic = ajouter, clic sur un mot placé = le retirer, ◀ ▶ = le déplacer */
 function attacherOrdre(el,cfg){
     const boutons=[...el.querySelectorAll(cfg.selecteur)],resultat=document.getElementById("revision-ordre-resultat"),ordre=[];
     const valider=document.getElementById("valider-ordre"),reset=document.getElementById("reinitialiser-ordre");
-    const maj=()=>{resultat.textContent=ordre.length?ordre.map(cfg.libelle).join(cfg.separateur):cfg.vide;};
+    let verrouille=false;
+
+    const maj=()=>{
+        resultat.innerHTML="";
+        if(!ordre.length){resultat.textContent=cfg.vide;return;}
+        ordre.forEach((b,i)=>{
+            const puce=document.createElement("span");
+            puce.className="revision-ordre-chip";
+            const bouton=(classe,texte,label,action,desactive)=>{
+                const x=document.createElement("button");
+                x.type="button";x.className=classe;x.textContent=texte;x.setAttribute("aria-label",label);
+                x.disabled=!!desactive;x.onclick=action;
+                return x;
+            };
+            puce.append(
+                bouton("revision-ordre-move","◀","Déplacer vers la gauche",()=>{[ordre[i-1],ordre[i]]=[ordre[i],ordre[i-1]];maj();},i===0),
+                bouton("revision-ordre-label",cfg.libelle(b),"Retirer « "+cfg.libelle(b)+" »",()=>{
+                    ordre.splice(i,1);b.disabled=false;b.classList.remove("selected");maj();
+                }),
+                bouton("revision-ordre-move","▶","Déplacer vers la droite",()=>{[ordre[i+1],ordre[i]]=[ordre[i],ordre[i+1]];maj();},i===ordre.length-1)
+            );
+            resultat.appendChild(puce);
+        });
+    };
     const reinit=()=>{ordre.length=0;boutons.forEach(b=>{b.disabled=false;b.classList.remove("selected");});maj();};
+
     boutons.forEach(b=>b.addEventListener("click",()=>{
-        if(b.disabled)return;
+        if(b.disabled||verrouille)return;
         ordre.push(b);b.disabled=true;b.classList.add("selected");maj();
     }));
     reset.onclick=reinit;
+    maj();
+
     valider.onclick=()=>{
+        if(verrouille)return;
         if(ordre.length<boutons.length){afficherFeedback("Sélectionne tous les éléments dans le bon ordre.","error");return;}
         if(cfg.verifier(ordre)){
+            verrouille=true;
             afficherFeedback("Bonne réponse. Continue comme ça.","success");
             marquerQuestionReussie();
-            cfg.apresSucces?.(ordre,resultat);
+            resultat.textContent=cfg.texteFinal(ordre);
             reset.hidden=true;
             proposerSuivant(null,valider);
         }else{
-            afficherFeedback("Ce n'est pas le bon ordre. Recommence.","error");
+            afficherFeedback("Ce n'est pas le bon ordre. Retire ou déplace des éléments, puis valide à nouveau.","error");
             signalerFaute();
-            reinit();
         }
     };
 }
@@ -819,7 +850,7 @@ JEUX.phrase_reconstituer={
     },
     attacher(el,q,v,bonne,etat){
         attacherOrdre(el,{
-            selecteur:".revision-phrase-word",libelle:b=>b.dataset.word,separateur:" ",vide:"Clique sur les mots dans le bon ordre.",
+            selecteur:".revision-phrase-word",libelle:b=>b.dataset.word,vide:"Clique sur les mots dans le bon ordre.",texteFinal:ordre=>ordre.map(b=>b.dataset.word).join(" "),
             verifier:ordre=>normaliserTexte(ordre.map(b=>b.dataset.word).join(" "))===etat.phrase
         });
     }
@@ -833,9 +864,9 @@ JEUX.timeline={
     },
     attacher(el){
         attacherOrdre(el,{
-            selecteur:".revision-timeline-item",libelle:b=>b.textContent,separateur:" → ",vide:"Les événements choisis apparaîtront ici.",
+            selecteur:".revision-timeline-item",libelle:b=>b.textContent,vide:"Les événements choisis apparaîtront ici.",
             verifier:ordre=>ordre.every((b,i)=>i===0||Number(ordre[i-1].dataset.annee)<=Number(b.dataset.annee)),
-            apresSucces:(ordre,resultat)=>{resultat.textContent=ordre.map(b=>b.dataset.date+" : "+b.textContent).join(" → ");}
+            texteFinal:ordre=>ordre.map(b=>b.dataset.date+" : "+b.textContent).join(" → ")
         });
     }
 };
