@@ -775,6 +775,31 @@ footer{padding:35px 20px;background:var(--primary);color:white}.footer-content{m
     background:var(--surface);
 }
 
+.revision-phrase-result{display:flex;flex-wrap:wrap;gap:8px;align-items:center;}
+
+.revision-ordre-chip{
+    display:inline-flex;
+    align-items:stretch;
+    border:2px solid var(--primary);
+    border-radius:10px;
+    background:var(--surface-soft);
+    overflow:hidden;
+}
+
+.revision-ordre-chip button{
+    padding:6px 9px;
+    border:0;
+    background:transparent;
+    color:var(--primary);
+    cursor:pointer;
+    font:inherit;
+}
+
+.revision-ordre-chip button:hover:not(:disabled){background:var(--accent);}
+.revision-ordre-chip button:disabled{opacity:.3;cursor:default;}
+.revision-ordre-label{font-weight:700;}
+.revision-ordre-move{font-size:.75rem;padding:6px 7px!important;}
+
 .revision-phrase-actions{
     display:flex;
     flex-wrap:wrap;
