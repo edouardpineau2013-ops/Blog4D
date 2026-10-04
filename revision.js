@@ -55,6 +55,36 @@ function escapeHtml(value){
     return String(value ?? "").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]));
 }
 
+/* ---------- Suivi d'utilisation ---------- */
+
+function idVisiteur(){
+    try{
+        let id=localStorage.getItem("visiteur_id");
+        if(!id){id=genererId();localStorage.setItem("visiteur_id",id);}
+        return id;
+    }catch{return null;}
+}
+
+async function enregistrerEvenement(evenement,extra={}){
+    try{
+        if(!ficheEtude)return;
+        const utilisateur=await utilisateurConnecte();
+        const profil=utilisateur?await obtenirProfil():null;
+        const {error}=await supabaseClient.from("fiche_vues").insert({
+            fiche_id:String(ficheEtude.id),
+            fiche_titre:ficheEtude.titre,
+            evenement,
+            visiteur_id:idVisiteur(),
+            user_id:utilisateur?.id??null,
+            user_identifiant:profil?.identifiant??null,
+            ...extra
+        });
+        if(error)console.warn("Suivi non enregistré :",error.message);
+    }catch(e){
+        console.warn("Suivi non enregistré :",e);
+    }
+}
+
 /* Échappe puis convertit les vrais retours à la ligne en <br> */
 function htmlTexte(value){
     return escapeHtml(value).replace(/\r?\n/g,"<br>");
@@ -415,6 +445,7 @@ function lancerRevision(){
     if(eligibles.length<nombre)return erreur("Avec les modes sélectionnés, seules "+eligibles.length+" question"+(eligibles.length>1?"s":"")+" sont utilisables.");
 
     session=creerSession(melanger(eligibles).slice(0,nombre),modes);
+    enregistrerEvenement("session",{nb_questions:nombre,modes:modes.join(",")});
     afficherQuestionSession();
 }
 
@@ -1160,6 +1191,7 @@ function afficherQuestionSession(){
 function afficherResultatRevision(){
     const total=session.questions.length;
     const pct=total?Math.round(session.score/total*100):0;
+    enregistrerEvenement("resultat",{score:session.score,nb_questions:total});
     let commentaire="Continue tes révisions : chaque question travaillée te fait progresser.";
     if(pct===100)commentaire="Excellent travail : toutes les réponses sont correctes.";
     else if(pct>=80)commentaire="Très bon travail : tes connaissances sont bien maîtrisées.";
