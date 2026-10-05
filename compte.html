@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="style.css">
     <link rel="icon" type="image/svg+xml" href="img/icon.svg">
     <style>
-        .account-container { max-width: 700px; margin: 60px auto; }
+        .account-container { max-width: 700px; margin: 60px auto 40px; }
         .account-card { background: rgba(255,255,255,.85); padding: 35px; border-radius: 18px; box-shadow: 0 5px 20px rgba(0,0,0,.12); text-align: center; }
         .account-icon { font-size: 55px; margin-bottom: 15px; }
         .account-card h2 { margin-bottom: 10px; }
@@ -32,10 +32,28 @@
             <button class="logout-button" id="deconnexion-button" type="button">Se déconnecter</button>
         </section>
     </div>
+
+    <!-- Dashboard -->
+    <section class="section-card dashboard" id="dashboard" hidden>
+        <div class="section-heading">
+            <div>
+                <span class="section-label" id="dashboard-label">TABLEAU DE BORD</span>
+                <h2 id="dashboard-titre">Utilisation des fiches</h2>
+            </div>
+            <select id="dashboard-periode" class="dash-select" aria-label="Période">
+                <option value="7">7 derniers jours</option>
+                <option value="30" selected>30 derniers jours</option>
+                <option value="0">Depuis le début</option>
+            </select>
+        </div>
+        <div id="dashboard-contenu"></div>
+    </section>
 </main>
 <footer><p>© 2026 — Blog des 4èmes D</p></footer>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="auth.js"></script>
+<script src="admin.js"></script>
+<script src="dashboard.js"></script>
 <script src="script.js" defer></script>
 <script>
     document.addEventListener("DOMContentLoaded", async () => {
@@ -51,6 +69,7 @@
             }
 
             identifiant.textContent = profil.identifiant || "Identifiant indisponible";
+            initialiserDashboard();
         } catch (error) {
             console.error("Erreur lors du chargement du compte :", error);
             window.location.replace("connexion.html");
