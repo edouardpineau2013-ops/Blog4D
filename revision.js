@@ -225,18 +225,19 @@ async function actualiserFiches(){
 
 /* ---------- Énoncés ---------- */
 
+/* Chaque énoncé affiche la donnée à partir de laquelle on doit retrouver la réponse (v[0]) */
 function promptQuestion(q){
     const v=valeurs(q);
     switch(q.type){
         case "question":return v[0];
         case "definition":case "vocabulaire":return "Qu'est-ce que "+v[0]+" ?";
-        case "date":return "À quel événement correspond cette date ou période ?";
+        case "date":return "À quel événement correspond la date ou période « "+v[0]+" » ?";
         case "personne":return "Qui est "+v[0]+" ?";
         case "lieu":return "Que faut-il retenir sur "+v[0]+" ?";
-        case "formule":return "Quelle est la formule à retenir ?";
-        case "regle":return "Quelle règle faut-il retenir ?";
+        case "formule":return "À quoi sert la formule « "+v[0]+" » ?";
+        case "regle":return "Dans quel cas applique-t-on cette règle : « "+v[0]+" » ?";
         case "methode":case "processus":return "Quelles sont les étapes de "+v[0]+" ?";
-        case "cause":return "Quelle est la cause et quelle est la conséquence ?";
+        case "cause":return "Quelle est la conséquence de : « "+v[0]+" » ?";
         case "exemple":return "Donne un exemple pour "+v[0]+".";
         case "liste":return "Quels éléments faut-il retenir pour "+v[0]+" ?";
         default:return "Réponds à la question.";
@@ -585,11 +586,10 @@ JEUX.mot_mystere=jeuSaisie({strict:true,placeholder:"Trouve le mot",
         return {html:'<h3>Mot mystère</h3><p class="revision-indice">'+htmlTexte(indice)+'</p><div class="revision-mystery-word">'+escapeHtml(m.masque.toUpperCase())+'</div>',attendu:terme};
     }});
 
-/* Flashcards */
+/* Flashcards (la date est désormais incluse dans l'énoncé par promptQuestion) */
 JEUX.flashcards={
     rendre(q,v,bonne){
-        const date=q.type==="date"?'<p class="revision-flashcard-date"><strong>Date / période :</strong> '+escapeHtml(v[0])+'</p>':"";
-        return '<h3>'+escapeHtml(promptQuestion(q))+'</h3>'+date+
+        return '<h3>'+escapeHtml(promptQuestion(q))+'</h3>'+
             '<button type="button" class="primary-button" id="reveler-reponse">Afficher la réponse</button>'+
             '<div id="reponse-cachee" class="revision-hidden-answer" hidden>'+htmlTexte(bonne)+'</div>'+
             '<div id="flashcard-actions" class="revision-phrase-actions" hidden>'+
